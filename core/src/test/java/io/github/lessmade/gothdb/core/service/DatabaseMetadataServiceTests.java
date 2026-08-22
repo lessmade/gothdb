@@ -6,12 +6,13 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.util.List;
 
-import io.github.lessmade.gothdb.core.metadata.SchemaNotFoundException;
-import io.github.lessmade.gothdb.core.metadata.TableNotFoundException;
+import io.github.lessmade.gothdb.core.exception.SchemaNotFoundException;
+import io.github.lessmade.gothdb.core.exception.TableNotFoundException;
 import io.github.lessmade.gothdb.core.model.ColumnInfo;
 import io.github.lessmade.gothdb.core.model.ForeignKeyInfo;
 import io.github.lessmade.gothdb.core.model.IndexInfo;
 import io.github.lessmade.gothdb.core.model.PrimaryKeyInfo;
+import io.github.lessmade.gothdb.core.model.RowPage;
 import io.github.lessmade.gothdb.core.model.SchemaInfo;
 import io.github.lessmade.gothdb.core.model.TableInfo;
 import org.h2.jdbcx.JdbcDataSource;
@@ -52,6 +53,12 @@ class DatabaseMetadataServiceTests {
                     )
                     """);
             statement.execute("CREATE INDEX IDX_ORDERS_CUSTOMER_ID ON APP.ORDERS (CUSTOMER_ID)");
+            statement.execute("""
+                    INSERT INTO APP.CUSTOMER (NAME, CREDIT) VALUES
+                        ('Alice', 100.00),
+                        ('Bob', 200.00),
+                        ('Carol', 300.00)
+                    """);
         }
 
         metadataService = new DatabaseMetadataService(dataSource);
@@ -148,6 +155,40 @@ class DatabaseMetadataServiceTests {
         assertThatThrownBy(() -> metadataService.getForeignKeys("APP", "MISSING"))
                 .isInstanceOf(TableNotFoundException.class);
         assertThatThrownBy(() -> metadataService.getIndexes("APP", "MISSING"))
+                .isInstanceOf(TableNotFoundException.class);
+    }
+
+    @Test
+    void readsRowsInPrimaryKeyOrderWithTotalCount() {
+        RowPage firstPage = metadataService.getRows("APP", "CUSTOMER", 0, 2);
+
+        assertThat(firstPage.page()).isEqualTo(0);
+        assertThat(firstPage.size()).isEqualTo(2);
+        assertThat(firstPage.totalElements()).isEqualTo(3);
+        assertThat(firstPage.rows()).extracting(row -> row.get("NAME"))
+                .containsExactly("Alice", "Bob");
+
+        RowPage secondPage = metadataService.getRows("APP", "CUSTOMER", 1, 2);
+        assertThat(secondPage.rows()).extracting(row -> row.get("NAME"))
+                .containsExactly("Carol");
+    }
+
+    @Test
+    void rejectsInvalidPagination() {
+        assertThatThrownBy(() -> metadataService.getRows("APP", "CUSTOMER", -1, 10))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("page must not be negative");
+        assertThatThrownBy(() -> metadataService.getRows("APP", "CUSTOMER", 0, 0))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("size must be at least 1");
+        assertThatThrownBy(() -> metadataService.getRows("APP", "CUSTOMER", 0, 501))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("size must not exceed 500");
+    }
+
+    @Test
+    void throwsNotFoundForMissingTableOnRows() {
+        assertThatThrownBy(() -> metadataService.getRows("APP", "MISSING", 0, 10))
                 .isInstanceOf(TableNotFoundException.class);
     }
 

@@ -1,4 +1,4 @@
-package io.github.lessmade.gothdb.core.metadata;
+package io.github.lessmade.gothdb.core.exception;
 
 public class SchemaNotFoundException extends RuntimeException {
 

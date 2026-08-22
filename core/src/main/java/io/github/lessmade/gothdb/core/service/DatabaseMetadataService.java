@@ -2,27 +2,34 @@ package io.github.lessmade.gothdb.core.service;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
-import io.github.lessmade.gothdb.core.metadata.DatabaseMetadataException;
-import io.github.lessmade.gothdb.core.metadata.SchemaNotFoundException;
-import io.github.lessmade.gothdb.core.metadata.TableNotFoundException;
+import io.github.lessmade.gothdb.core.exception.DatabaseMetadataException;
+import io.github.lessmade.gothdb.core.exception.SchemaNotFoundException;
+import io.github.lessmade.gothdb.core.exception.TableNotFoundException;
 import io.github.lessmade.gothdb.core.model.ColumnInfo;
 import io.github.lessmade.gothdb.core.model.DatabaseInfo;
 import io.github.lessmade.gothdb.core.model.ForeignKeyInfo;
 import io.github.lessmade.gothdb.core.model.IndexInfo;
 import io.github.lessmade.gothdb.core.model.PrimaryKeyInfo;
+import io.github.lessmade.gothdb.core.model.RowPage;
 import io.github.lessmade.gothdb.core.model.SchemaInfo;
 import io.github.lessmade.gothdb.core.model.TableInfo;
 
 public final class DatabaseMetadataService {
 
     private static final String[] TABLE_TYPES = { "TABLE", "BASE TABLE", "VIEW" };
+    private static final int MAX_PAGE_SIZE = 500;
 
     private final DataSource dataSource;
 
@@ -226,6 +233,100 @@ public final class DatabaseMetadataService {
         }
         catch (SQLException exception) {
             throw metadataFailure(exception);
+        }
+    }
+
+    public RowPage getRows(String schema, String table, int page, int size) {
+        requireName(schema, "schema");
+        requireName(table, "table");
+        requirePagination(page, size);
+
+        try (Connection connection = dataSource.getConnection()) {
+
+            DatabaseMetaData metadata = connection.getMetaData();
+            requireSchemaAndTableExist(metadata, schema, table);
+
+            String quote = metadata.getIdentifierQuoteString();
+            String qualifiedTable = quoteIdentifier(quote, schema) + "." + quoteIdentifier(quote, table);
+            String orderByClause = orderByPrimaryKey(metadata, schema, table, quote);
+
+            long totalElements = countRows(connection, qualifiedTable);
+            List<Map<String, Object>> rows = selectRows(connection, qualifiedTable, orderByClause, page, size);
+
+            return new RowPage(page, size, totalElements, rows);
+        }
+        catch (SQLException exception) {
+            throw metadataFailure(exception);
+        }
+    }
+
+    private static long countRows(Connection connection, String qualifiedTable) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM " + qualifiedTable;
+        try (PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet resultSet = statement.executeQuery()) {
+            resultSet.next();
+            return resultSet.getLong(1);
+        }
+    }
+
+    private static List<Map<String, Object>> selectRows(
+            Connection connection, String qualifiedTable, String orderByClause, int page, int size)
+            throws SQLException {
+        String sql = "SELECT * FROM " + qualifiedTable + orderByClause + " LIMIT ? OFFSET ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+
+            statement.setInt(1, size);
+            statement.setLong(2, (long) page * size);
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+                ResultSetMetaData columns = resultSet.getMetaData();
+                int columnCount = columns.getColumnCount();
+
+                List<Map<String, Object>> rows = new ArrayList<>();
+                while (resultSet.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    for (int i = 1; i <= columnCount; i++) {
+                        row.put(columns.getColumnLabel(i), resultSet.getObject(i));
+                    }
+                    rows.add(row);
+                }
+                return List.copyOf(rows);
+            }
+        }
+    }
+
+    private static String orderByPrimaryKey(DatabaseMetaData metadata, String schema, String table, String quote)
+            throws SQLException {
+        List<String> keyColumns = new ArrayList<>();
+        try (ResultSet resultSet = metadata.getPrimaryKeys(null, schema, table)) {
+            while (resultSet.next()) {
+                keyColumns.add(resultSet.getString("COLUMN_NAME"));
+            }
+        }
+        if (keyColumns.isEmpty()) {
+            return "";
+        }
+        return " ORDER BY " + keyColumns.stream()
+                .map(column -> quoteIdentifier(quote, column))
+                .collect(Collectors.joining(", "));
+    }
+
+    private static String quoteIdentifier(String quote, String identifier) {
+        if (quote == null || quote.isBlank()) {
+            return identifier;
+        }
+        return quote + identifier.replace(quote, quote + quote) + quote;
+    }
+
+    private static void requirePagination(int page, int size) {
+        if (page < 0) {
+            throw new IllegalArgumentException("page must not be negative");
+        }
+        if (size < 1) {
+            throw new IllegalArgumentException("size must be at least 1");
+        }
+        if (size > MAX_PAGE_SIZE) {
+            throw new IllegalArgumentException("size must not exceed " + MAX_PAGE_SIZE);
         }
     }
 

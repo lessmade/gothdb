@@ -1,11 +1,11 @@
-package io.github.lessmade.gothdb.autoconfigure;
+package io.github.lessmade.gothdb.autoconfigure.config;
 
 import javax.sql.DataSource;
 
-import io.github.lessmade.gothdb.autoconfigure.web.GothDbExceptionHandler;
 import io.github.lessmade.gothdb.autoconfigure.web.GothDbMetadataController;
 import io.github.lessmade.gothdb.autoconfigure.web.GothDbStatusController;
 import io.github.lessmade.gothdb.core.service.DatabaseMetadataService;
+import io.github.lessmade.gothdb.exception.GothDbExceptionHandler;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;

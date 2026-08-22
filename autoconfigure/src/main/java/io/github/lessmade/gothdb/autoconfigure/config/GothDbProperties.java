@@ -1,18 +1,12 @@
-package io.github.lessmade.gothdb.autoconfigure;
+package io.github.lessmade.gothdb.autoconfigure.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties("gothdb")
 public class GothDbProperties {
 
-    /**
-     * Whether GothDB is enabled.
-     */
     private boolean enabled = true;
 
-    /**
-     * Base path of the GothDB web interface.
-     */
     private String path = "/gothdb";
 
     public boolean isEnabled() {
