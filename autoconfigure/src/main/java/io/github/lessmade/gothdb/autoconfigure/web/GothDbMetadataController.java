@@ -3,6 +3,9 @@ package io.github.lessmade.gothdb.autoconfigure.web;
 import java.util.List;
 
 import io.github.lessmade.gothdb.core.model.ColumnInfo;
+import io.github.lessmade.gothdb.core.model.ForeignKeyInfo;
+import io.github.lessmade.gothdb.core.model.IndexInfo;
+import io.github.lessmade.gothdb.core.model.PrimaryKeyInfo;
 import io.github.lessmade.gothdb.core.model.SchemaInfo;
 import io.github.lessmade.gothdb.core.model.TableInfo;
 import io.github.lessmade.gothdb.core.service.DatabaseMetadataService;
@@ -37,5 +40,26 @@ public class GothDbMetadataController {
             @PathVariable("schema") String schema,
             @PathVariable("table") String table) {
         return metadataService.getColumns(schema, table);
+    }
+
+    @GetMapping("/schemas/{schema}/tables/{table}/primary-key")
+    public List<PrimaryKeyInfo> primaryKey(
+            @PathVariable("schema") String schema,
+            @PathVariable("table") String table) {
+        return metadataService.getPrimaryKeys(schema, table);
+    }
+
+    @GetMapping("/schemas/{schema}/tables/{table}/foreign-keys")
+    public List<ForeignKeyInfo> foreignKeys(
+            @PathVariable("schema") String schema,
+            @PathVariable("table") String table) {
+        return metadataService.getForeignKeys(schema, table);
+    }
+
+    @GetMapping("/schemas/{schema}/tables/{table}/indexes")
+    public List<IndexInfo> indexes(
+            @PathVariable("schema") String schema,
+            @PathVariable("table") String table) {
+        return metadataService.getIndexes(schema, table);
     }
 }

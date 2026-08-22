@@ -136,6 +136,19 @@ class GothDbAutoConfigurationTests {
                             .andExpect(jsonPath("$[0].name").value("ID"))
                             .andExpect(jsonPath("$[1].name").value("TITLE"));
 
+                    mockMvc.perform(get("/database/api/schemas/PUBLIC/tables/BOOK/primary-key"))
+                            .andExpect(status().isOk())
+                            .andExpect(jsonPath("$[0].columnName").value("ID"));
+
+                    mockMvc.perform(get("/database/api/schemas/PUBLIC/tables/BOOK/foreign-keys"))
+                            .andExpect(status().isOk())
+                            .andExpect(jsonPath("$").isArray())
+                            .andExpect(jsonPath("$").isEmpty());
+
+                    mockMvc.perform(get("/database/api/schemas/PUBLIC/tables/BOOK/indexes"))
+                            .andExpect(status().isOk())
+                            .andExpect(jsonPath("$").isArray());
+
                     mockMvc.perform(get("/database/api/schemas/MISSING/tables"))
                             .andExpect(status().isNotFound())
                             .andExpect(jsonPath("$.status").value(404))
