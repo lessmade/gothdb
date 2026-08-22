@@ -14,6 +14,9 @@ import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
+import io.github.lessmade.gothdb.core.dialect.DatabaseDialect;
+import io.github.lessmade.gothdb.core.dialect.LimitOffsetDialect;
+import io.github.lessmade.gothdb.core.dialect.PaginatedQuery;
 import io.github.lessmade.gothdb.core.exception.DatabaseMetadataException;
 import io.github.lessmade.gothdb.core.exception.SchemaNotFoundException;
 import io.github.lessmade.gothdb.core.exception.TableNotFoundException;
@@ -32,9 +35,15 @@ public final class DatabaseMetadataService {
     private static final int MAX_PAGE_SIZE = 500;
 
     private final DataSource dataSource;
+    private final DatabaseDialect dialect;
 
     public DatabaseMetadataService(DataSource dataSource) {
+        this(dataSource, new LimitOffsetDialect());
+    }
+
+    public DatabaseMetadataService(DataSource dataSource, DatabaseDialect dialect) {
         this.dataSource = dataSource;
+        this.dialect = dialect;
     }
 
     public DatabaseInfo getDatabaseInfo() {
@@ -269,14 +278,18 @@ public final class DatabaseMetadataService {
         }
     }
 
-    private static List<Map<String, Object>> selectRows(
+    private List<Map<String, Object>> selectRows(
             Connection connection, String qualifiedTable, String orderByClause, int page, int size)
             throws SQLException {
-        String sql = "SELECT * FROM " + qualifiedTable + orderByClause + " LIMIT ? OFFSET ?";
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+        String baseSql = "SELECT * FROM " + qualifiedTable + orderByClause;
+        PaginatedQuery query = dialect.paginate(baseSql, page, size);
 
-            statement.setInt(1, size);
-            statement.setLong(2, (long) page * size);
+        try (PreparedStatement statement = connection.prepareStatement(query.sql())) {
+
+            List<Object> parameters = query.parameters();
+            for (int i = 0; i < parameters.size(); i++) {
+                statement.setObject(i + 1, parameters.get(i));
+            }
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 ResultSetMetaData columns = resultSet.getMetaData();
