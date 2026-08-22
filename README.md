@@ -2,7 +2,7 @@
 
 Modern read-only database explorer for PostgreSQL and MySQL, shipped as a Spring Boot auto-configuration starter.
 
-> **⚠️ Early demo — not production-ready.** The API and UI you see here run against an in-memory H2 database with sample data (`demo` module). PostgreSQL/MySQL are the stated goal but not yet dialect-tested against real instances. Expect breaking changes.
+> **Early demo — not production-ready.** The API and UI you see here run against an in-memory H2 database with sample data (`demo` module). PostgreSQL/MySQL are the stated goal but not yet dialect-tested against real instances. Expect breaking changes.
 
 ## What works right now
 
