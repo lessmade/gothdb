@@ -6,6 +6,8 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.util.List;
 
+import io.github.lessmade.gothdb.core.metadata.SchemaNotFoundException;
+import io.github.lessmade.gothdb.core.metadata.TableNotFoundException;
 import io.github.lessmade.gothdb.core.model.ColumnInfo;
 import io.github.lessmade.gothdb.core.model.SchemaInfo;
 import io.github.lessmade.gothdb.core.model.TableInfo;
@@ -77,8 +79,26 @@ class DatabaseMetadataServiceTests {
 
     @Test
     void treatsWildcardCharactersAsLiteralNames() {
-        assertThat(metadataService.getTables("APP%")).isEmpty();
-        assertThat(metadataService.getColumns("APP", "CUSTOMER%")).isEmpty();
+        assertThatThrownBy(() -> metadataService.getTables("APP%"))
+                .isInstanceOf(SchemaNotFoundException.class);
+        assertThatThrownBy(() -> metadataService.getColumns("APP", "CUSTOMER%"))
+                .isInstanceOf(TableNotFoundException.class);
+    }
+
+    @Test
+    void throwsWhenSchemaIsMissing() {
+        assertThatThrownBy(() -> metadataService.getTables("MISSING"))
+                .isInstanceOf(SchemaNotFoundException.class)
+                .hasMessage("Schema not found: MISSING");
+        assertThatThrownBy(() -> metadataService.getColumns("MISSING", "CUSTOMER"))
+                .isInstanceOf(SchemaNotFoundException.class);
+    }
+
+    @Test
+    void throwsWhenTableIsMissing() {
+        assertThatThrownBy(() -> metadataService.getColumns("APP", "MISSING"))
+                .isInstanceOf(TableNotFoundException.class)
+                .hasMessage("Table not found: APP.MISSING");
     }
 
     @Test

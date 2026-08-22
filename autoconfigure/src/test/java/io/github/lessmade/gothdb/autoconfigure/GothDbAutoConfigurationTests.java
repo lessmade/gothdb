@@ -6,6 +6,7 @@ import java.sql.Statement;
 
 import javax.sql.DataSource;
 
+import io.github.lessmade.gothdb.autoconfigure.web.GothDbExceptionHandler;
 import io.github.lessmade.gothdb.autoconfigure.web.GothDbMetadataController;
 import io.github.lessmade.gothdb.autoconfigure.web.GothDbStatus;
 import io.github.lessmade.gothdb.autoconfigure.web.GothDbStatusController;
@@ -110,6 +111,7 @@ class GothDbAutoConfigurationTests {
                             .standaloneSetup(
                                     context.getBean(GothDbStatusController.class),
                                     context.getBean(GothDbMetadataController.class))
+                            .setControllerAdvice(context.getBean(GothDbExceptionHandler.class))
                             .addPlaceholderValue("gothdb.path", "/database")
                             .build();
 
@@ -133,6 +135,19 @@ class GothDbAutoConfigurationTests {
                             .andExpect(status().isOk())
                             .andExpect(jsonPath("$[0].name").value("ID"))
                             .andExpect(jsonPath("$[1].name").value("TITLE"));
+
+                    mockMvc.perform(get("/database/api/schemas/MISSING/tables"))
+                            .andExpect(status().isNotFound())
+                            .andExpect(jsonPath("$.status").value(404))
+                            .andExpect(jsonPath("$.message").value("Schema not found: MISSING"));
+
+                    mockMvc.perform(get("/database/api/schemas/PUBLIC/tables/MISSING/columns"))
+                            .andExpect(status().isNotFound())
+                            .andExpect(jsonPath("$.message").value("Table not found: PUBLIC.MISSING"));
+
+                    mockMvc.perform(get("/database/api/schemas/{schema}/tables", " "))
+                            .andExpect(status().isBadRequest())
+                            .andExpect(jsonPath("$.status").value(400));
                 });
     }
 

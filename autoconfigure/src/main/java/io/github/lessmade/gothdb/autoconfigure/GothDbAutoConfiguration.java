@@ -2,6 +2,7 @@ package io.github.lessmade.gothdb.autoconfigure;
 
 import javax.sql.DataSource;
 
+import io.github.lessmade.gothdb.autoconfigure.web.GothDbExceptionHandler;
 import io.github.lessmade.gothdb.autoconfigure.web.GothDbMetadataController;
 import io.github.lessmade.gothdb.autoconfigure.web.GothDbStatusController;
 import io.github.lessmade.gothdb.core.service.DatabaseMetadataService;
@@ -41,5 +42,11 @@ public class GothDbAutoConfiguration {
     @ConditionalOnMissingBean
     GothDbMetadataController gothDbMetadataController(DatabaseMetadataService metadataService) {
         return new GothDbMetadataController(metadataService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    GothDbExceptionHandler gothDbExceptionHandler() {
+        return new GothDbExceptionHandler();
     }
 }

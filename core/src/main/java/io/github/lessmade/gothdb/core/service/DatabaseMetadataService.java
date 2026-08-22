@@ -10,6 +10,8 @@ import java.util.List;
 import javax.sql.DataSource;
 
 import io.github.lessmade.gothdb.core.metadata.DatabaseMetadataException;
+import io.github.lessmade.gothdb.core.metadata.SchemaNotFoundException;
+import io.github.lessmade.gothdb.core.metadata.TableNotFoundException;
 import io.github.lessmade.gothdb.core.model.ColumnInfo;
 import io.github.lessmade.gothdb.core.model.DatabaseInfo;
 import io.github.lessmade.gothdb.core.model.SchemaInfo;
@@ -60,6 +62,7 @@ public final class DatabaseMetadataService {
         try (Connection connection = dataSource.getConnection()) {
             DatabaseMetaData metadata = connection.getMetaData();
             String schemaPattern = escapePattern(metadata, schema);
+            requireSchemaExists(metadata, schemaPattern, schema);
             try (ResultSet resultSet = metadata.getTables(null, schemaPattern, "%", TABLE_TYPES)) {
                 List<TableInfo> tables = new ArrayList<>();
                 while (resultSet.next()) {
@@ -86,6 +89,8 @@ public final class DatabaseMetadataService {
             DatabaseMetaData metadata = connection.getMetaData();
             String schemaPattern = escapePattern(metadata, schema);
             String tablePattern = escapePattern(metadata, table);
+            requireSchemaExists(metadata, schemaPattern, schema);
+            requireTableExists(metadata, schemaPattern, tablePattern, schema, table);
             try (ResultSet resultSet = metadata.getColumns(null, schemaPattern, tablePattern, "%")) {
                 List<ColumnInfo> columns = new ArrayList<>();
                 while (resultSet.next()) {
@@ -108,6 +113,25 @@ public final class DatabaseMetadataService {
         }
         catch (SQLException exception) {
             throw metadataFailure(exception);
+        }
+    }
+
+    private static void requireSchemaExists(DatabaseMetaData metadata, String schemaPattern, String schema)
+            throws SQLException {
+        try (ResultSet resultSet = metadata.getSchemas(null, schemaPattern)) {
+            if (!resultSet.next()) {
+                throw new SchemaNotFoundException(schema);
+            }
+        }
+    }
+
+    private static void requireTableExists(
+            DatabaseMetaData metadata, String schemaPattern, String tablePattern, String schema, String table)
+            throws SQLException {
+        try (ResultSet resultSet = metadata.getTables(null, schemaPattern, tablePattern, TABLE_TYPES)) {
+            if (!resultSet.next()) {
+                throw new TableNotFoundException(schema, table);
+            }
         }
     }
 

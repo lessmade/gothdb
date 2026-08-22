@@ -41,6 +41,7 @@
         <module>core</module>
         <module>autoconfigure</module>
         <module>spring-boot-starter</module>
+        <module>demo</module>
     </modules>
 
     <properties>
@@ -68,6 +69,11 @@
             <dependency>
                 <groupId>io.github.lessmade</groupId>
                 <artifactId>gothdb-autoconfigure</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.lessmade</groupId>
+                <artifactId>gothdb-spring-boot-starter</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>
