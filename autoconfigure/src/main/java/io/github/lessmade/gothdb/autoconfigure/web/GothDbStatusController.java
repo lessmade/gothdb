@@ -19,11 +19,9 @@ public class GothDbStatusController {
 
     @GetMapping("/status")
     public GothDbStatus status() {
+
         DatabaseInfo databaseInfo = metadataService.getDatabaseInfo();
-        return new GothDbStatus(
-                "UP",
-                databaseInfo.product(),
-                databaseInfo.version(),
-                databaseInfo.driver());
+        
+        return new GothDbStatus("UP", databaseInfo.product(), databaseInfo.version(), databaseInfo.driver());
     }
 }

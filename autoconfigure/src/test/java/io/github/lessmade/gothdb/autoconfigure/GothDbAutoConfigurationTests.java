@@ -6,10 +6,14 @@ import java.sql.Statement;
 
 import javax.sql.DataSource;
 
+import io.github.lessmade.gothdb.autoconfigure.config.GothDbAutoConfiguration;
+import io.github.lessmade.gothdb.autoconfigure.config.GothDbProperties;
 import io.github.lessmade.gothdb.autoconfigure.web.GothDbMetadataController;
 import io.github.lessmade.gothdb.autoconfigure.web.GothDbStatus;
 import io.github.lessmade.gothdb.autoconfigure.web.GothDbStatusController;
 import io.github.lessmade.gothdb.core.service.DatabaseMetadataService;
+import io.github.lessmade.gothdb.exception.GothDbExceptionHandler;
+
 import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.Test;
 
@@ -110,6 +114,7 @@ class GothDbAutoConfigurationTests {
                             .standaloneSetup(
                                     context.getBean(GothDbStatusController.class),
                                     context.getBean(GothDbMetadataController.class))
+                            .setControllerAdvice(context.getBean(GothDbExceptionHandler.class))
                             .addPlaceholderValue("gothdb.path", "/database")
                             .build();
 
@@ -133,6 +138,44 @@ class GothDbAutoConfigurationTests {
                             .andExpect(status().isOk())
                             .andExpect(jsonPath("$[0].name").value("ID"))
                             .andExpect(jsonPath("$[1].name").value("TITLE"));
+
+                    mockMvc.perform(get("/database/api/schemas/PUBLIC/tables/BOOK/primary-key"))
+                            .andExpect(status().isOk())
+                            .andExpect(jsonPath("$[0].columnName").value("ID"));
+
+                    mockMvc.perform(get("/database/api/schemas/PUBLIC/tables/BOOK/foreign-keys"))
+                            .andExpect(status().isOk())
+                            .andExpect(jsonPath("$").isArray())
+                            .andExpect(jsonPath("$").isEmpty());
+
+                    mockMvc.perform(get("/database/api/schemas/PUBLIC/tables/BOOK/indexes"))
+                            .andExpect(status().isOk())
+                            .andExpect(jsonPath("$").isArray());
+
+                    mockMvc.perform(get("/database/api/schemas/MISSING/tables"))
+                            .andExpect(status().isNotFound())
+                            .andExpect(jsonPath("$.status").value(404))
+                            .andExpect(jsonPath("$.message").value("Schema not found: MISSING"));
+
+                    mockMvc.perform(get("/database/api/schemas/PUBLIC/tables/MISSING/columns"))
+                            .andExpect(status().isNotFound())
+                            .andExpect(jsonPath("$.message").value("Table not found: PUBLIC.MISSING"));
+
+                    mockMvc.perform(get("/database/api/schemas/{schema}/tables", " "))
+                            .andExpect(status().isBadRequest())
+                            .andExpect(jsonPath("$.status").value(400));
+
+                    mockMvc.perform(get("/database/api/schemas/PUBLIC/tables/BOOK/rows")
+                                    .param("page", "0")
+                                    .param("size", "10"))
+                            .andExpect(status().isOk())
+                            .andExpect(jsonPath("$.page").value(0))
+                            .andExpect(jsonPath("$.size").value(10));
+
+                    mockMvc.perform(get("/database/api/schemas/PUBLIC/tables/BOOK/rows")
+                                    .param("size", "abc"))
+                            .andExpect(status().isBadRequest())
+                            .andExpect(jsonPath("$.status").value(400));
                 });
     }
 
