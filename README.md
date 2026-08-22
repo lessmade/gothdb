@@ -1,2 +1,54 @@
 # gothdb
-Modern read-only database explorer for PostgreSQL and MySQL.
+
+Modern read-only database explorer for PostgreSQL and MySQL, shipped as a Spring Boot auto-configuration starter.
+
+> **⚠️ Early demo — not production-ready.** The API and UI you see here run against an in-memory H2 database with sample data (`demo` module). PostgreSQL/MySQL are the stated goal but not yet dialect-tested against real instances. Expect breaking changes.
+
+## What works right now
+
+- Drop `gothdb-spring-boot-starter` into a Spring Boot app with a `DataSource` — it auto-configures itself, no manual wiring.
+- Read-only REST API over `DatabaseMetaData`:
+  - `GET /gothdb/api/status`
+  - `GET /gothdb/api/schemas`
+  - `GET /gothdb/api/schemas/{schema}/tables`
+  - `GET /gothdb/api/schemas/{schema}/tables/{table}/columns`
+  - `GET /gothdb/api/schemas/{schema}/tables/{table}/primary-key`
+  - `GET /gothdb/api/schemas/{schema}/tables/{table}/foreign-keys`
+  - `GET /gothdb/api/schemas/{schema}/tables/{table}/indexes`
+  - `GET /gothdb/api/schemas/{schema}/tables/{table}/rows?page=&size=`
+- Unified error handling (400 bad params, 404 unknown schema/table, generic 500 — no JDBC internals leaked).
+- A minimalist black-and-white UI (`ui/`): schemas → tables → columns/data, with connection status.
+
+## Quick start (demo)
+
+Backend (H2 + sample schema, port 8080):
+
+```bash
+mvn -f demo/pom.xml org.springframework.boot:spring-boot-maven-plugin:4.1.0:run
+```
+
+UI (dev server on port 5173, proxies API calls to the backend):
+
+```bash
+cd ui
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`.
+
+## Configuration
+
+```yaml
+gothdb:
+  enabled: true   # default true, auto-disables without a servlet DataSource
+  path: /gothdb    # base path for the API and UI
+```
+
+## Modules
+
+- `core` — framework-agnostic JDBC metadata reading, no Spring dependency.
+- `autoconfigure` — Spring Boot auto-configuration, REST controllers, error handling.
+- `spring-boot-starter` — the dependency consumers actually add to their project.
+- `demo` — runnable sample app (H2, seeded schema) used to develop and manually verify the above.
+- `ui` — the frontend (Vite + React), built separately, not yet wired into the Maven build.
