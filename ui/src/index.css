@@ -1,0 +1,42 @@
+:root {
+  --bg: #050505;
+  --bg-raised: #0d0d0d;
+  --fg: #e8e8e8;
+  --fg-muted: #808080;
+  --fg-faint: #454545;
+  --border: #262626;
+  --selected-bg: #e8e8e8;
+  --selected-fg: #050505;
+  --error: #d9645a;
+  --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+table {
+  border-collapse: collapse;
+}

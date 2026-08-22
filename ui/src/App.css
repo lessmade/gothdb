@@ -1,0 +1,265 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.status-bar__brand {
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.status-bar__state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg-muted);
+}
+
+.status-bar__state--error {
+  color: var(--error);
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fg);
+  display: inline-block;
+}
+
+.explorer {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 220px 260px 1fr;
+}
+
+.explorer > div {
+  border-right: 1px solid var(--border);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.explorer > div:last-child {
+  border-right: none;
+}
+
+.list-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.list-panel__title {
+  padding: 8px 12px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.list-panel__body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.list-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 12px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  cursor: pointer;
+}
+
+.list-row:hover {
+  background: var(--bg-raised);
+}
+
+.list-row--selected,
+.list-row--selected:hover {
+  background: var(--selected-bg);
+  color: var(--selected-fg);
+}
+
+.state-message {
+  padding: 12px;
+  color: var(--fg-muted);
+}
+
+.state-message--error {
+  color: var(--error);
+}
+
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--fg-faint);
+}
+
+.columns-panel {
+  height: 100%;
+  overflow: auto;
+}
+
+.table-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.table-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.table-panel__title {
+  padding: 8px 12px;
+  color: var(--fg-muted);
+}
+
+.table-panel__title span:first-child,
+.table-panel__title span:last-child {
+  color: var(--fg);
+}
+
+.table-panel__sep {
+  margin: 0 4px;
+  color: var(--fg-faint);
+}
+
+.table-panel__body {
+  flex: 1;
+  min-height: 0;
+}
+
+.tab-bar {
+  display: flex;
+  padding-right: 8px;
+}
+
+.tab-bar__tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--fg-muted);
+  padding: 8px 12px;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+
+.tab-bar__tab:hover {
+  color: var(--fg);
+}
+
+.tab-bar__tab--active {
+  color: var(--fg);
+  border-bottom-color: var(--fg);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.data-table th {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  font-weight: 400;
+}
+
+.tag {
+  display: inline-block;
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+  margin-right: 4px;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--fg-muted);
+}
+
+.rows-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.rows-panel__scroll {
+  flex: 1;
+  overflow: auto;
+}
+
+.rows-panel__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  color: var(--fg-muted);
+  flex-shrink: 0;
+}
+
+.rows-panel__nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rows-panel__nav button {
+  border: 1px solid var(--border);
+  background: none;
+  color: inherit;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.rows-panel__nav button:disabled {
+  color: var(--fg-faint);
+  cursor: default;
+}
+
+.rows-panel__nav button:not(:disabled):hover {
+  background: var(--bg-raised);
+  color: var(--fg);
+}
