@@ -37,12 +37,38 @@ npm run dev
 
 Open `http://localhost:5173`.
 
+## Tests
+
+Run the unit and auto-configuration tests without external services:
+
+```bash
+mvn test
+```
+
+Run the PostgreSQL integration tests with Docker!!!!:
+
+```bash
+mvn verify -Ppostgresql-integration-tests
+```
+
 ## Configuration
 
 ```yaml
 gothdb:
   enabled: true   # default true, auto-disables without a servlet DataSource
   path: /gothdb    # base path for the API and UI
+  schemas:
+    include: []    # empty means all schemas
+    exclude:       # PostgreSQL system schemas are excluded by default
+      - information_schema
+      - pg_catalog
+      - pg_toast
+      - pg_temp_*
+      - pg_toast_temp_*
+  rows:
+    count-mode: exact # exact returns totals; none avoids COUNT(*)
+    max-page-size: 200
+    query-timeout: 5s
 ```
 
 ## Modules

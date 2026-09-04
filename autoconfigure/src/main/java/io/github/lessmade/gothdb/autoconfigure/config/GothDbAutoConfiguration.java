@@ -5,6 +5,11 @@ import javax.sql.DataSource;
 import io.github.lessmade.gothdb.autoconfigure.web.GothDbMetadataController;
 import io.github.lessmade.gothdb.autoconfigure.web.GothDbStatusController;
 import io.github.lessmade.gothdb.core.service.DatabaseMetadataService;
+import io.github.lessmade.gothdb.core.schema.PatternSchemaFilter;
+import io.github.lessmade.gothdb.core.schema.SchemaFilter;
+import io.github.lessmade.gothdb.core.row.RowQueryOptions;
+import io.github.lessmade.gothdb.core.value.DefaultJdbcValueConverter;
+import io.github.lessmade.gothdb.core.value.JdbcValueConverter;
 import io.github.lessmade.gothdb.exception.GothDbExceptionHandler;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -28,8 +33,33 @@ public class GothDbAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    DatabaseMetadataService gothDbDatabaseMetadataService(DataSource dataSource) {
-        return new DatabaseMetadataService(dataSource);
+    JdbcValueConverter gothDbJdbcValueConverter() {
+        return new DefaultJdbcValueConverter();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    SchemaFilter gothDbSchemaFilter(GothDbProperties properties) {
+        return new PatternSchemaFilter(
+                properties.getSchemas().getInclude(),
+                properties.getSchemas().getExclude());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    RowQueryOptions gothDbRowQueryOptions(GothDbProperties properties) {
+        GothDbProperties.Rows rows = properties.getRows();
+        return new RowQueryOptions(rows.getCountMode(), rows.getMaxPageSize(), rows.getQueryTimeout());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    DatabaseMetadataService gothDbDatabaseMetadataService(
+            DataSource dataSource,
+            JdbcValueConverter valueConverter,
+            SchemaFilter schemaFilter,
+            RowQueryOptions rowQueryOptions) {
+        return new DatabaseMetadataService(dataSource, valueConverter, schemaFilter, rowQueryOptions);
     }
 
     @Bean
@@ -40,8 +70,9 @@ public class GothDbAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    GothDbMetadataController gothDbMetadataController(DatabaseMetadataService metadataService) {
-        return new GothDbMetadataController(metadataService);
+    GothDbMetadataController gothDbMetadataController(
+            DatabaseMetadataService metadataService, RowQueryOptions rowQueryOptions) {
+        return new GothDbMetadataController(metadataService, rowQueryOptions);
     }
 
     @Bean

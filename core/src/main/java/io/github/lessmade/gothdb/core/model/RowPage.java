@@ -6,6 +6,7 @@ import java.util.Map;
 public record RowPage(
         int page,
         int size,
-        long totalElements,
+        Long totalElements,
+        boolean stableOrder,
         List<Map<String, Object>> rows) {
 }

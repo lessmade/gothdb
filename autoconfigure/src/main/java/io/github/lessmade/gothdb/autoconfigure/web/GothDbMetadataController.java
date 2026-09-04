@@ -10,6 +10,7 @@ import io.github.lessmade.gothdb.core.model.RowPage;
 import io.github.lessmade.gothdb.core.model.SchemaInfo;
 import io.github.lessmade.gothdb.core.model.TableInfo;
 import io.github.lessmade.gothdb.core.service.DatabaseMetadataService;
+import io.github.lessmade.gothdb.core.row.RowQueryOptions;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,9 +23,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class GothDbMetadataController {
 
     private final DatabaseMetadataService metadataService;
+    private final int defaultPageSize;
 
     public GothDbMetadataController(DatabaseMetadataService metadataService) {
+        this(metadataService, RowQueryOptions.DEFAULTS);
+    }
+
+    public GothDbMetadataController(DatabaseMetadataService metadataService, RowQueryOptions rowQueryOptions) {
         this.metadataService = metadataService;
+        this.defaultPageSize = Math.min(50, rowQueryOptions.maxPageSize());
     }
 
     @GetMapping("/schemas")
@@ -64,8 +71,10 @@ public class GothDbMetadataController {
     }
 
     @GetMapping("/schemas/{schema}/tables/{table}/rows")
-    public RowPage rows(@PathVariable("schema") String schema, @PathVariable("table") String table, @RequestParam(name = "page", defaultValue = "0") int page, @RequestParam(name = "size", defaultValue = "50") int size) {
+    public RowPage rows(@PathVariable("schema") String schema, @PathVariable("table") String table,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", required = false) Integer size) {
         
-        return metadataService.getRows(schema, table, page, size);
+        return metadataService.getRows(schema, table, page, size == null ? defaultPageSize : size);
     }
 }

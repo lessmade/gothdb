@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Comparator;
 import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
@@ -28,22 +29,69 @@ import io.github.lessmade.gothdb.core.model.PrimaryKeyInfo;
 import io.github.lessmade.gothdb.core.model.RowPage;
 import io.github.lessmade.gothdb.core.model.SchemaInfo;
 import io.github.lessmade.gothdb.core.model.TableInfo;
+import io.github.lessmade.gothdb.core.row.CountMode;
+import io.github.lessmade.gothdb.core.row.RowQueryOptions;
+import io.github.lessmade.gothdb.core.schema.PatternSchemaFilter;
+import io.github.lessmade.gothdb.core.schema.SchemaFilter;
+import io.github.lessmade.gothdb.core.value.DefaultJdbcValueConverter;
+import io.github.lessmade.gothdb.core.value.JdbcValueConverter;
 
 public final class DatabaseMetadataService {
 
-    private static final String[] TABLE_TYPES = { "TABLE", "BASE TABLE", "VIEW" };
-    private static final int MAX_PAGE_SIZE = 500;
+    private static final String[] TABLE_TYPES = {
+            "TABLE", "BASE TABLE", "VIEW", "MATERIALIZED VIEW", "FOREIGN TABLE", "PARTITIONED TABLE"
+    };
 
     private final DataSource dataSource;
     private final DatabaseDialect dialect;
+    private final JdbcValueConverter valueConverter;
+    private final SchemaFilter schemaFilter;
+    private final RowQueryOptions rowQueryOptions;
 
     public DatabaseMetadataService(DataSource dataSource) {
-        this(dataSource, new LimitOffsetDialect());
+        this(dataSource, new LimitOffsetDialect(), new DefaultJdbcValueConverter(),
+                PatternSchemaFilter.defaults(), RowQueryOptions.DEFAULTS);
     }
 
     public DatabaseMetadataService(DataSource dataSource, DatabaseDialect dialect) {
+        this(dataSource, dialect, new DefaultJdbcValueConverter(), PatternSchemaFilter.defaults(),
+                RowQueryOptions.DEFAULTS);
+    }
+
+    public DatabaseMetadataService(DataSource dataSource, JdbcValueConverter valueConverter) {
+        this(dataSource, new LimitOffsetDialect(), valueConverter, PatternSchemaFilter.defaults(),
+                RowQueryOptions.DEFAULTS);
+    }
+
+    public DatabaseMetadataService(
+            DataSource dataSource, DatabaseDialect dialect, JdbcValueConverter valueConverter) {
+        this(dataSource, dialect, valueConverter, PatternSchemaFilter.defaults(), RowQueryOptions.DEFAULTS);
+    }
+
+    public DatabaseMetadataService(
+            DataSource dataSource, JdbcValueConverter valueConverter, SchemaFilter schemaFilter) {
+        this(dataSource, new LimitOffsetDialect(), valueConverter, schemaFilter, RowQueryOptions.DEFAULTS);
+    }
+
+    public DatabaseMetadataService(
+            DataSource dataSource,
+            JdbcValueConverter valueConverter,
+            SchemaFilter schemaFilter,
+            RowQueryOptions rowQueryOptions) {
+        this(dataSource, new LimitOffsetDialect(), valueConverter, schemaFilter, rowQueryOptions);
+    }
+
+    public DatabaseMetadataService(
+            DataSource dataSource,
+            DatabaseDialect dialect,
+            JdbcValueConverter valueConverter,
+            SchemaFilter schemaFilter,
+            RowQueryOptions rowQueryOptions) {
         this.dataSource = dataSource;
         this.dialect = dialect;
+        this.valueConverter = valueConverter;
+        this.schemaFilter = schemaFilter;
+        this.rowQueryOptions = rowQueryOptions;
     }
 
     public DatabaseInfo getDatabaseInfo() {
@@ -64,9 +112,10 @@ public final class DatabaseMetadataService {
                 ResultSet resultSet = connection.getMetaData().getSchemas()) {
             List<SchemaInfo> schemas = new ArrayList<>();
             while (resultSet.next()) {
-                schemas.add(new SchemaInfo(
-                        resultSet.getString("TABLE_CATALOG"),
-                        resultSet.getString("TABLE_SCHEM")));
+                String schema = resultSet.getString("TABLE_SCHEM");
+                if (schemaFilter.isVisible(schema)) {
+                    schemas.add(new SchemaInfo(resultSet.getString("TABLE_CATALOG"), schema));
+                }
             }
             return List.copyOf(schemas);
         }
@@ -77,6 +126,7 @@ public final class DatabaseMetadataService {
 
     public List<TableInfo> getTables(String schema) {
         requireName(schema, "schema");
+        requireSchemaVisible(schema);
 
         try (Connection connection = dataSource.getConnection()) {
             DatabaseMetaData metadata = connection.getMetaData();
@@ -103,6 +153,7 @@ public final class DatabaseMetadataService {
     public List<ColumnInfo> getColumns(String schema, String table) {
         requireName(schema, "schema");
         requireName(table, "table");
+        requireSchemaVisible(schema);
 
         try (Connection connection = dataSource.getConnection()) {
 
@@ -142,6 +193,7 @@ public final class DatabaseMetadataService {
     public List<PrimaryKeyInfo> getPrimaryKeys(String schema, String table) {
         requireName(schema, "schema");
         requireName(table, "table");
+        requireSchemaVisible(schema);
 
         try (Connection connection = dataSource.getConnection()) {
 
@@ -173,6 +225,7 @@ public final class DatabaseMetadataService {
 
         requireName(schema, "schema");
         requireName(table, "table");
+        requireSchemaVisible(schema);
 
         try (Connection connection = dataSource.getConnection()) {
 
@@ -211,6 +264,7 @@ public final class DatabaseMetadataService {
 
         requireName(schema, "schema");
         requireName(table, "table");
+        requireSchemaVisible(schema);
 
         try (Connection connection = dataSource.getConnection()) {
 
@@ -248,7 +302,8 @@ public final class DatabaseMetadataService {
     public RowPage getRows(String schema, String table, int page, int size) {
         requireName(schema, "schema");
         requireName(table, "table");
-        requirePagination(page, size);
+        requireSchemaVisible(schema);
+        requirePagination(page, size, rowQueryOptions.maxPageSize());
 
         try (Connection connection = dataSource.getConnection()) {
 
@@ -257,24 +312,28 @@ public final class DatabaseMetadataService {
 
             String quote = metadata.getIdentifierQuoteString();
             String qualifiedTable = quoteIdentifier(quote, schema) + "." + quoteIdentifier(quote, table);
-            String orderByClause = orderByPrimaryKey(metadata, schema, table, quote);
+            RowOrder rowOrder = orderByPrimaryKey(metadata, schema, table, quote);
 
-            long totalElements = countRows(connection, qualifiedTable);
-            List<Map<String, Object>> rows = selectRows(connection, qualifiedTable, orderByClause, page, size);
+            Long totalElements = rowQueryOptions.countMode() == CountMode.EXACT
+                    ? countRows(connection, qualifiedTable)
+                    : null;
+            List<Map<String, Object>> rows = selectRows(connection, qualifiedTable, rowOrder.sql(), page, size);
 
-            return new RowPage(page, size, totalElements, rows);
+            return new RowPage(page, size, totalElements, rowOrder.stable(), rows);
         }
         catch (SQLException exception) {
             throw metadataFailure(exception);
         }
     }
 
-    private static long countRows(Connection connection, String qualifiedTable) throws SQLException {
+    private long countRows(Connection connection, String qualifiedTable) throws SQLException {
         String sql = "SELECT COUNT(*) FROM " + qualifiedTable;
-        try (PreparedStatement statement = connection.prepareStatement(sql);
-                ResultSet resultSet = statement.executeQuery()) {
-            resultSet.next();
-            return resultSet.getLong(1);
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            applyQueryTimeout(statement);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                resultSet.next();
+                return resultSet.getLong(1);
+            }
         }
     }
 
@@ -285,6 +344,7 @@ public final class DatabaseMetadataService {
         PaginatedQuery query = dialect.paginate(baseSql, page, size);
 
         try (PreparedStatement statement = connection.prepareStatement(query.sql())) {
+            applyQueryTimeout(statement);
 
             List<Object> parameters = query.parameters();
             for (int i = 0; i < parameters.size(); i++) {
@@ -299,7 +359,7 @@ public final class DatabaseMetadataService {
                 while (resultSet.next()) {
                     Map<String, Object> row = new LinkedHashMap<>();
                     for (int i = 1; i <= columnCount; i++) {
-                        row.put(columns.getColumnLabel(i), resultSet.getObject(i));
+                        row.put(columns.getColumnLabel(i), valueConverter.convert(resultSet.getObject(i)));
                     }
                     rows.add(row);
                 }
@@ -308,20 +368,24 @@ public final class DatabaseMetadataService {
         }
     }
 
-    private static String orderByPrimaryKey(DatabaseMetaData metadata, String schema, String table, String quote)
+    private static RowOrder orderByPrimaryKey(DatabaseMetaData metadata, String schema, String table, String quote)
             throws SQLException {
-        List<String> keyColumns = new ArrayList<>();
+        List<PrimaryKeyColumn> keyColumns = new ArrayList<>();
         try (ResultSet resultSet = metadata.getPrimaryKeys(null, schema, table)) {
             while (resultSet.next()) {
-                keyColumns.add(resultSet.getString("COLUMN_NAME"));
+                keyColumns.add(new PrimaryKeyColumn(
+                        resultSet.getInt("KEY_SEQ"),
+                        resultSet.getString("COLUMN_NAME")));
             }
         }
         if (keyColumns.isEmpty()) {
-            return "";
+            return new RowOrder("", false);
         }
-        return " ORDER BY " + keyColumns.stream()
-                .map(column -> quoteIdentifier(quote, column))
+        keyColumns.sort(Comparator.comparingInt(PrimaryKeyColumn::sequence));
+        String sql = " ORDER BY " + keyColumns.stream()
+                .map(column -> quoteIdentifier(quote, column.name()))
                 .collect(Collectors.joining(", "));
+        return new RowOrder(sql, true);
     }
 
     private static String quoteIdentifier(String quote, String identifier) {
@@ -331,15 +395,23 @@ public final class DatabaseMetadataService {
         return quote + identifier.replace(quote, quote + quote) + quote;
     }
 
-    private static void requirePagination(int page, int size) {
+    private static void requirePagination(int page, int size, int maxPageSize) {
         if (page < 0) {
             throw new IllegalArgumentException("page must not be negative");
         }
         if (size < 1) {
             throw new IllegalArgumentException("size must be at least 1");
         }
-        if (size > MAX_PAGE_SIZE) {
-            throw new IllegalArgumentException("size must not exceed " + MAX_PAGE_SIZE);
+        if (size > maxPageSize) {
+            throw new IllegalArgumentException("size must not exceed " + maxPageSize);
+        }
+    }
+
+    private void applyQueryTimeout(PreparedStatement statement) throws SQLException {
+        if (!rowQueryOptions.queryTimeout().isZero()) {
+            long milliseconds = rowQueryOptions.queryTimeout().toMillis();
+            long seconds = Math.max(1, (milliseconds + 999) / 1000);
+            statement.setQueryTimeout((int) Math.min(seconds, Integer.MAX_VALUE));
         }
     }
 
@@ -403,7 +475,19 @@ public final class DatabaseMetadataService {
         }
     }
 
+    private void requireSchemaVisible(String schema) {
+        if (!schemaFilter.isVisible(schema)) {
+            throw new SchemaNotFoundException(schema);
+        }
+    }
+
     private static DatabaseMetadataException metadataFailure(SQLException exception) {
         return new DatabaseMetadataException("Failed to read database metadata", exception);
+    }
+
+    private record PrimaryKeyColumn(int sequence, String name) {
+    }
+
+    private record RowOrder(String sql, boolean stable) {
     }
 }
