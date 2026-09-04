@@ -37,6 +37,10 @@ npm run dev
 
 Open `http://localhost:5173`.
 
+The Maven build also installs a project-local Node.js, runs `npm ci` and bundles the UI into the
+`gothdb-autoconfigure` JAR under `META-INF/gothdb`. The embedded assets are not served by Spring MVC yet;
+use the Vite dev server until the UI web auto-configuration is added.
+
 ## Tests
 
 Run the unit and auto-configuration tests without external services:
@@ -77,4 +81,4 @@ gothdb:
 - `autoconfigure` — Spring Boot auto-configuration, REST controllers, error handling.
 - `spring-boot-starter` — the dependency consumers actually add to their project.
 - `demo` — runnable sample app (H2, seeded schema) used to develop and manually verify the above.
-- `ui` — the frontend (Vite + React), built separately, not yet wired into the Maven build.
+- `ui` — the Vite + React frontend, built by Maven and packaged into `gothdb-autoconfigure`.
