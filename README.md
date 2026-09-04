@@ -65,6 +65,10 @@ gothdb:
       - pg_toast
       - pg_temp_*
       - pg_toast_temp_*
+  rows:
+    count-mode: exact # exact returns totals; none avoids COUNT(*)
+    max-page-size: 200
+    query-timeout: 5s
 ```
 
 ## Modules

@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
+import java.time.Duration;
 import java.util.List;
 
 import io.github.lessmade.gothdb.core.exception.SchemaNotFoundException;
@@ -16,6 +17,8 @@ import io.github.lessmade.gothdb.core.model.RowPage;
 import io.github.lessmade.gothdb.core.model.SchemaInfo;
 import io.github.lessmade.gothdb.core.model.TableInfo;
 import io.github.lessmade.gothdb.core.schema.PatternSchemaFilter;
+import io.github.lessmade.gothdb.core.row.CountMode;
+import io.github.lessmade.gothdb.core.row.RowQueryOptions;
 import io.github.lessmade.gothdb.core.value.DefaultJdbcValueConverter;
 import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.BeforeEach;
@@ -185,6 +188,7 @@ class DatabaseMetadataServiceTests {
         assertThat(firstPage.page()).isEqualTo(0);
         assertThat(firstPage.size()).isEqualTo(2);
         assertThat(firstPage.totalElements()).isEqualTo(3);
+        assertThat(firstPage.stableOrder()).isTrue();
         assertThat(firstPage.rows()).extracting(row -> row.get("NAME"))
                 .containsExactly("Alice", "Bob");
 
@@ -201,9 +205,27 @@ class DatabaseMetadataServiceTests {
         assertThatThrownBy(() -> metadataService.getRows("APP", "CUSTOMER", 0, 0))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("size must be at least 1");
-        assertThatThrownBy(() -> metadataService.getRows("APP", "CUSTOMER", 0, 501))
+        assertThatThrownBy(() -> metadataService.getRows("APP", "CUSTOMER", 0, 201))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("size must not exceed 500");
+                .hasMessage("size must not exceed 200");
+    }
+
+    @Test
+    void canSkipExactCountAndReportsUnstableOrderWithoutPrimaryKey() {
+        JdbcDataSource dataSource = new JdbcDataSource();
+        dataSource.setURL("jdbc:h2:mem:metadata;DB_CLOSE_DELAY=-1");
+        dataSource.setUser("sa");
+        DatabaseMetadataService noCountService = new DatabaseMetadataService(
+                dataSource,
+                new DefaultJdbcValueConverter(),
+                PatternSchemaFilter.defaults(),
+                new RowQueryOptions(CountMode.NONE, 25, Duration.ofSeconds(2)));
+
+        RowPage page = noCountService.getRows("APP", "CUSTOMER_NAMES", 0, 25);
+
+        assertThat(page.totalElements()).isNull();
+        assertThat(page.stableOrder()).isFalse();
+        assertThat(page.rows()).hasSize(3);
     }
 
     @Test

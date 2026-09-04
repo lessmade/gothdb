@@ -78,6 +78,7 @@ export interface TableDetails {
 export interface RowPage {
   page: number
   size: number
-  totalElements: number
+  totalElements: number | null
+  stableOrder: boolean
   rows: Record<string, unknown>[]
 }

@@ -15,9 +15,18 @@ export function RowsPanel({ schema, table }: RowsPanelProps) {
   const { data, loading, error } = useAsync(() => fetchRows(schema, table, page, PAGE_SIZE), [schema, table, page])
 
   const columnNames = data && data.rows.length > 0 ? Object.keys(data.rows[0]) : []
-  const totalPages = data ? Math.max(1, Math.ceil(data.totalElements / PAGE_SIZE)) : 1
-  const rangeStart = data && data.totalElements > 0 ? page * PAGE_SIZE + 1 : 0
-  const rangeEnd = data ? Math.min(data.totalElements, (page + 1) * PAGE_SIZE) : 0
+  const totalPages = data?.totalElements == null ? null : Math.max(1, Math.ceil(data.totalElements / PAGE_SIZE))
+  const rangeStart = data && data.rows.length > 0 ? page * PAGE_SIZE + 1 : 0
+  const rangeEnd = data
+    ? data.totalElements == null
+      ? page * PAGE_SIZE + data.rows.length
+      : Math.min(data.totalElements, (page + 1) * PAGE_SIZE)
+    : 0
+  const hasNext = data
+    ? data.totalElements == null
+      ? data.rows.length === PAGE_SIZE
+      : (page + 1) * PAGE_SIZE < data.totalElements
+    : false
 
   return (
     <div className="rows-panel">
@@ -52,18 +61,19 @@ export function RowsPanel({ schema, table }: RowsPanelProps) {
           </div>
           <div className="rows-panel__footer">
             <span>
-              {rangeStart}–{rangeEnd} of {data.totalElements}
+              {rangeStart}–{rangeEnd}{data.totalElements == null ? '' : ` of ${data.totalElements}`}
+              {!data.stableOrder && ' · unstable order (no primary key)'}
             </span>
             <div className="rows-panel__nav">
               <button type="button" disabled={page === 0} onClick={() => setPage((current) => current - 1)}>
                 Prev
               </button>
               <span>
-                {page + 1} / {totalPages}
+                {page + 1}{totalPages == null ? '' : ` / ${totalPages}`}
               </span>
               <button
                 type="button"
-                disabled={page + 1 >= totalPages}
+                disabled={!hasNext}
                 onClick={() => setPage((current) => current + 1)}
               >
                 Next

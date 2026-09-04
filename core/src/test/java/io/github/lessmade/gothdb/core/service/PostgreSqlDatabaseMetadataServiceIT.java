@@ -65,6 +65,25 @@ class PostgreSqlDatabaseMetadataServiceIT {
                     """);
             statement.execute("CREATE INDEX idx_book_title ON app.book (title)");
             statement.execute("CREATE VIEW app.book_titles AS SELECT author_id, title FROM app.book");
+            statement.execute("CREATE MATERIALIZED VIEW app.author_names AS SELECT id, name FROM app.author");
+            statement.execute("""
+                    CREATE TABLE app.audit_event (
+                        id BIGINT NOT NULL,
+                        happened_on DATE NOT NULL
+                    ) PARTITION BY RANGE (happened_on)
+                    """);
+            statement.execute("""
+                    CREATE TABLE app.audit_event_2024 PARTITION OF app.audit_event
+                    FOR VALUES FROM ('2024-01-01') TO ('2025-01-01')
+                    """);
+            statement.execute("CREATE FOREIGN DATA WRAPPER gothdb_dummy NO HANDLER");
+            statement.execute("CREATE SERVER gothdb_dummy_server FOREIGN DATA WRAPPER gothdb_dummy");
+            statement.execute("""
+                    CREATE FOREIGN TABLE app.remote_book (
+                        id BIGINT,
+                        title TEXT
+                    ) SERVER gothdb_dummy_server
+                    """);
             statement.execute("""
                     INSERT INTO app.author (id, name, profile, aliases, created_at)
                     VALUES ('00000000-0000-0000-0000-000000000001', 'Ursula', '{"active":true}',
@@ -93,7 +112,10 @@ class PostgreSqlDatabaseMetadataServiceIT {
                 .contains(
                         tuple("author", "TABLE"),
                         tuple("book", "TABLE"),
-                        tuple("book_titles", "VIEW"));
+                        tuple("book_titles", "VIEW"),
+                        tuple("author_names", "MATERIALIZED VIEW"),
+                        tuple("remote_book", "FOREIGN TABLE"),
+                        tuple("audit_event", "PARTITIONED TABLE"));
 
         assertThatThrownBy(() -> metadataService.getTables("pg_catalog"))
                 .isInstanceOf(SchemaNotFoundException.class);

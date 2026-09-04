@@ -13,6 +13,8 @@ import io.github.lessmade.gothdb.autoconfigure.web.GothDbStatus;
 import io.github.lessmade.gothdb.autoconfigure.web.GothDbStatusController;
 import io.github.lessmade.gothdb.core.service.DatabaseMetadataService;
 import io.github.lessmade.gothdb.core.value.JdbcValueConverter;
+import io.github.lessmade.gothdb.core.row.CountMode;
+import io.github.lessmade.gothdb.core.row.RowQueryOptions;
 import io.github.lessmade.gothdb.exception.GothDbExceptionHandler;
 
 import org.h2.jdbcx.JdbcDataSource;
@@ -123,6 +125,34 @@ class GothDbAutoConfigurationTests {
                 .withBean(DataSource.class, GothDbAutoConfigurationTests::dataSource)
                 .run(context -> assertThat(context.getBean(GothDbProperties.class)
                         .getSchemas().getExclude()).containsExactlyElementsOf(DEFAULT_EXCLUDES));
+    }
+
+    @Test
+    void bindsRowQueryOptions() {
+        contextRunner
+                .withBean(DataSource.class, GothDbAutoConfigurationTests::dataSource)
+                .withPropertyValues(
+                        "gothdb.rows.count-mode=none",
+                        "gothdb.rows.max-page-size=25",
+                        "gothdb.rows.query-timeout=2s")
+                .run(context -> {
+                    RowQueryOptions options = context.getBean(RowQueryOptions.class);
+                    assertThat(options.countMode()).isEqualTo(CountMode.NONE);
+                    assertThat(options.maxPageSize()).isEqualTo(25);
+                    assertThat(options.queryTimeout()).isEqualTo(java.time.Duration.ofSeconds(2));
+
+                    MockMvc mockMvc = MockMvcBuilders
+                            .standaloneSetup(context.getBean(GothDbMetadataController.class))
+                            .setControllerAdvice(context.getBean(GothDbExceptionHandler.class))
+                            .addPlaceholderValue("gothdb.path", "/gothdb")
+                            .build();
+
+                    mockMvc.perform(get("/gothdb/api/schemas/PUBLIC/tables/ROW_VALUE/rows"))
+                            .andExpect(status().isOk())
+                            .andExpect(jsonPath("$.size").value(25))
+                            .andExpect(jsonPath("$.totalElements").doesNotExist())
+                            .andExpect(jsonPath("$.stableOrder").value(true));
+                });
     }
 
     @Test
