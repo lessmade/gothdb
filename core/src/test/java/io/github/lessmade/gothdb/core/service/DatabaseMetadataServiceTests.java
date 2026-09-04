@@ -15,6 +15,8 @@ import io.github.lessmade.gothdb.core.model.PrimaryKeyInfo;
 import io.github.lessmade.gothdb.core.model.RowPage;
 import io.github.lessmade.gothdb.core.model.SchemaInfo;
 import io.github.lessmade.gothdb.core.model.TableInfo;
+import io.github.lessmade.gothdb.core.schema.PatternSchemaFilter;
+import io.github.lessmade.gothdb.core.value.DefaultJdbcValueConverter;
 import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -110,6 +112,24 @@ class DatabaseMetadataServiceTests {
                 .hasMessage("Schema not found: MISSING");
         assertThatThrownBy(() -> metadataService.getColumns("MISSING", "CUSTOMER"))
                 .isInstanceOf(SchemaNotFoundException.class);
+    }
+
+    @Test
+    void hidesFilteredSchemasFromListingAndDirectAccess() {
+        JdbcDataSource dataSource = new JdbcDataSource();
+        dataSource.setURL("jdbc:h2:mem:metadata;DB_CLOSE_DELAY=-1");
+        dataSource.setUser("sa");
+        DatabaseMetadataService filteredService = new DatabaseMetadataService(
+                dataSource,
+                new DefaultJdbcValueConverter(),
+                new PatternSchemaFilter(List.of(), List.of("APP")));
+
+        assertThat(filteredService.getSchemas())
+                .extracting(SchemaInfo::name)
+                .doesNotContain("APP");
+        assertThatThrownBy(() -> filteredService.getTables("APP"))
+                .isInstanceOf(SchemaNotFoundException.class)
+                .hasMessage("Schema not found: APP");
     }
 
     @Test

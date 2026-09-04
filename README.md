@@ -57,6 +57,14 @@ mvn verify -Ppostgresql-integration-tests
 gothdb:
   enabled: true   # default true, auto-disables without a servlet DataSource
   path: /gothdb    # base path for the API and UI
+  schemas:
+    include: []    # empty means all schemas
+    exclude:       # PostgreSQL system schemas are excluded by default
+      - information_schema
+      - pg_catalog
+      - pg_toast
+      - pg_temp_*
+      - pg_toast_temp_*
 ```
 
 ## Modules

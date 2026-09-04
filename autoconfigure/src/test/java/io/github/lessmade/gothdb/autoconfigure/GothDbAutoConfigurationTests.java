@@ -25,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static io.github.lessmade.gothdb.core.schema.PatternSchemaFilter.DEFAULT_EXCLUDES;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -90,6 +91,38 @@ class GothDbAutoConfigurationTests {
                 .withPropertyValues("gothdb.path=/database")
                 .run(context -> assertThat(context.getBean(GothDbProperties.class).getPath())
                         .isEqualTo("/database"));
+    }
+
+    @Test
+    void bindsSchemaFiltersAndBlocksDirectAccess() {
+        contextRunner
+                .withBean(DataSource.class, GothDbAutoConfigurationTests::dataSource)
+                .withPropertyValues("gothdb.schemas.include=PUBLIC", "gothdb.schemas.exclude=PUBLIC")
+                .run(context -> {
+                    GothDbProperties properties = context.getBean(GothDbProperties.class);
+                    assertThat(properties.getSchemas().getInclude()).containsExactly("PUBLIC");
+                    assertThat(properties.getSchemas().getExclude()).containsExactly("PUBLIC");
+
+                    MockMvc mockMvc = MockMvcBuilders
+                            .standaloneSetup(context.getBean(GothDbMetadataController.class))
+                            .setControllerAdvice(context.getBean(GothDbExceptionHandler.class))
+                            .addPlaceholderValue("gothdb.path", "/gothdb")
+                            .build();
+
+                    mockMvc.perform(get("/gothdb/api/schemas"))
+                            .andExpect(status().isOk())
+                            .andExpect(jsonPath("$[?(@.name == 'PUBLIC')]").doesNotExist());
+                    mockMvc.perform(get("/gothdb/api/schemas/PUBLIC/tables"))
+                            .andExpect(status().isNotFound());
+                });
+    }
+
+    @Test
+    void usesPostgreSqlSystemSchemaExcludesByDefault() {
+        contextRunner
+                .withBean(DataSource.class, GothDbAutoConfigurationTests::dataSource)
+                .run(context -> assertThat(context.getBean(GothDbProperties.class)
+                        .getSchemas().getExclude()).containsExactlyElementsOf(DEFAULT_EXCLUDES));
     }
 
     @Test

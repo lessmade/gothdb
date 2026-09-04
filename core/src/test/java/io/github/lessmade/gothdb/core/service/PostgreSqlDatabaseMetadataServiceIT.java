@@ -9,6 +9,7 @@ import java.util.List;
 
 import io.github.lessmade.gothdb.core.model.ColumnInfo;
 import io.github.lessmade.gothdb.core.model.RowPage;
+import io.github.lessmade.gothdb.core.exception.SchemaNotFoundException;
 import io.github.lessmade.gothdb.core.value.BinaryValue;
 import io.github.lessmade.gothdb.core.value.UnsupportedJdbcValue;
 import org.junit.jupiter.api.BeforeAll;
@@ -19,6 +20,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.groups.Tuple.tuple;
 
 @Testcontainers
@@ -82,7 +84,9 @@ class PostgreSqlDatabaseMetadataServiceIT {
     void readsPostgreSqlSchemaTablesAndView() {
         assertThat(metadataService.getSchemas())
                 .extracting(schema -> schema.name())
-                .contains("app");
+                .contains("app")
+                .doesNotContain("information_schema", "pg_catalog", "pg_toast")
+                .noneMatch(schema -> schema.startsWith("pg_temp_") || schema.startsWith("pg_toast_temp_"));
 
         assertThat(metadataService.getTables("app"))
                 .extracting(table -> table.name(), table -> table.type())
@@ -90,6 +94,9 @@ class PostgreSqlDatabaseMetadataServiceIT {
                         tuple("author", "TABLE"),
                         tuple("book", "TABLE"),
                         tuple("book_titles", "VIEW"));
+
+        assertThatThrownBy(() -> metadataService.getTables("pg_catalog"))
+                .isInstanceOf(SchemaNotFoundException.class);
     }
 
     @Test

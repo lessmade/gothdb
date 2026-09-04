@@ -28,6 +28,8 @@ import io.github.lessmade.gothdb.core.model.PrimaryKeyInfo;
 import io.github.lessmade.gothdb.core.model.RowPage;
 import io.github.lessmade.gothdb.core.model.SchemaInfo;
 import io.github.lessmade.gothdb.core.model.TableInfo;
+import io.github.lessmade.gothdb.core.schema.PatternSchemaFilter;
+import io.github.lessmade.gothdb.core.schema.SchemaFilter;
 import io.github.lessmade.gothdb.core.value.DefaultJdbcValueConverter;
 import io.github.lessmade.gothdb.core.value.JdbcValueConverter;
 
@@ -39,24 +41,39 @@ public final class DatabaseMetadataService {
     private final DataSource dataSource;
     private final DatabaseDialect dialect;
     private final JdbcValueConverter valueConverter;
+    private final SchemaFilter schemaFilter;
 
     public DatabaseMetadataService(DataSource dataSource) {
-        this(dataSource, new LimitOffsetDialect(), new DefaultJdbcValueConverter());
+        this(dataSource, new LimitOffsetDialect(), new DefaultJdbcValueConverter(), PatternSchemaFilter.defaults());
     }
 
     public DatabaseMetadataService(DataSource dataSource, DatabaseDialect dialect) {
-        this(dataSource, dialect, new DefaultJdbcValueConverter());
+        this(dataSource, dialect, new DefaultJdbcValueConverter(), PatternSchemaFilter.defaults());
     }
 
     public DatabaseMetadataService(DataSource dataSource, JdbcValueConverter valueConverter) {
-        this(dataSource, new LimitOffsetDialect(), valueConverter);
+        this(dataSource, new LimitOffsetDialect(), valueConverter, PatternSchemaFilter.defaults());
     }
 
     public DatabaseMetadataService(
             DataSource dataSource, DatabaseDialect dialect, JdbcValueConverter valueConverter) {
+        this(dataSource, dialect, valueConverter, PatternSchemaFilter.defaults());
+    }
+
+    public DatabaseMetadataService(
+            DataSource dataSource, JdbcValueConverter valueConverter, SchemaFilter schemaFilter) {
+        this(dataSource, new LimitOffsetDialect(), valueConverter, schemaFilter);
+    }
+
+    public DatabaseMetadataService(
+            DataSource dataSource,
+            DatabaseDialect dialect,
+            JdbcValueConverter valueConverter,
+            SchemaFilter schemaFilter) {
         this.dataSource = dataSource;
         this.dialect = dialect;
         this.valueConverter = valueConverter;
+        this.schemaFilter = schemaFilter;
     }
 
     public DatabaseInfo getDatabaseInfo() {
@@ -77,9 +94,10 @@ public final class DatabaseMetadataService {
                 ResultSet resultSet = connection.getMetaData().getSchemas()) {
             List<SchemaInfo> schemas = new ArrayList<>();
             while (resultSet.next()) {
-                schemas.add(new SchemaInfo(
-                        resultSet.getString("TABLE_CATALOG"),
-                        resultSet.getString("TABLE_SCHEM")));
+                String schema = resultSet.getString("TABLE_SCHEM");
+                if (schemaFilter.isVisible(schema)) {
+                    schemas.add(new SchemaInfo(resultSet.getString("TABLE_CATALOG"), schema));
+                }
             }
             return List.copyOf(schemas);
         }
@@ -90,6 +108,7 @@ public final class DatabaseMetadataService {
 
     public List<TableInfo> getTables(String schema) {
         requireName(schema, "schema");
+        requireSchemaVisible(schema);
 
         try (Connection connection = dataSource.getConnection()) {
             DatabaseMetaData metadata = connection.getMetaData();
@@ -116,6 +135,7 @@ public final class DatabaseMetadataService {
     public List<ColumnInfo> getColumns(String schema, String table) {
         requireName(schema, "schema");
         requireName(table, "table");
+        requireSchemaVisible(schema);
 
         try (Connection connection = dataSource.getConnection()) {
 
@@ -155,6 +175,7 @@ public final class DatabaseMetadataService {
     public List<PrimaryKeyInfo> getPrimaryKeys(String schema, String table) {
         requireName(schema, "schema");
         requireName(table, "table");
+        requireSchemaVisible(schema);
 
         try (Connection connection = dataSource.getConnection()) {
 
@@ -186,6 +207,7 @@ public final class DatabaseMetadataService {
 
         requireName(schema, "schema");
         requireName(table, "table");
+        requireSchemaVisible(schema);
 
         try (Connection connection = dataSource.getConnection()) {
 
@@ -224,6 +246,7 @@ public final class DatabaseMetadataService {
 
         requireName(schema, "schema");
         requireName(table, "table");
+        requireSchemaVisible(schema);
 
         try (Connection connection = dataSource.getConnection()) {
 
@@ -261,6 +284,7 @@ public final class DatabaseMetadataService {
     public RowPage getRows(String schema, String table, int page, int size) {
         requireName(schema, "schema");
         requireName(table, "table");
+        requireSchemaVisible(schema);
         requirePagination(page, size);
 
         try (Connection connection = dataSource.getConnection()) {
@@ -413,6 +437,12 @@ public final class DatabaseMetadataService {
     private static void requireName(String value, String parameter) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(parameter + " must not be blank");
+        }
+    }
+
+    private void requireSchemaVisible(String schema) {
+        if (!schemaFilter.isVisible(schema)) {
+            throw new SchemaNotFoundException(schema);
         }
     }
 
