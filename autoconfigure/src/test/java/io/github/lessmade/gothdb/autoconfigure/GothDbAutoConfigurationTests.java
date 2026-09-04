@@ -11,6 +11,8 @@ import io.github.lessmade.gothdb.autoconfigure.config.GothDbProperties;
 import io.github.lessmade.gothdb.autoconfigure.web.GothDbMetadataController;
 import io.github.lessmade.gothdb.autoconfigure.web.GothDbStatus;
 import io.github.lessmade.gothdb.autoconfigure.web.GothDbStatusController;
+import io.github.lessmade.gothdb.autoconfigure.ui.GothDbUiController;
+import io.github.lessmade.gothdb.autoconfigure.ui.GothDbUiWebConfiguration;
 import io.github.lessmade.gothdb.core.service.DatabaseMetadataService;
 import io.github.lessmade.gothdb.core.value.JdbcValueConverter;
 import io.github.lessmade.gothdb.core.row.CountMode;
@@ -55,6 +57,8 @@ class GothDbAutoConfigurationTests {
                     assertThat(context).hasSingleBean(GothDbMetadataController.class);
                     assertThat(context).hasSingleBean(DatabaseMetadataService.class);
                     assertThat(context).hasSingleBean(JdbcValueConverter.class);
+                    assertThat(context).hasSingleBean(GothDbUiController.class);
+                    assertThat(context).hasSingleBean(GothDbUiWebConfiguration.class);
                     assertThat(context).hasSingleBean(GothDbProperties.class);
                 });
     }
@@ -83,6 +87,33 @@ class GothDbAutoConfigurationTests {
                     assertThat(context).doesNotHaveBean(GothDbStatusController.class);
                     assertThat(context).doesNotHaveBean(GothDbMetadataController.class);
                     assertThat(context).doesNotHaveBean(DatabaseMetadataService.class);
+                });
+    }
+
+    @Test
+    void canDisableUiWithoutDisablingApi() {
+        contextRunner
+                .withBean(DataSource.class, GothDbAutoConfigurationTests::dataSource)
+                .withPropertyValues("gothdb.ui.enabled=false")
+                .run(context -> {
+                    assertThat(context).doesNotHaveBean(GothDbUiController.class);
+                    assertThat(context).doesNotHaveBean(GothDbUiWebConfiguration.class);
+                    assertThat(context).hasSingleBean(GothDbStatusController.class);
+                    assertThat(context).hasSingleBean(GothDbMetadataController.class);
+                });
+    }
+
+    @Test
+    void uiControllerServesPackagedIndexAndRedirectsToTrailingSlash() {
+        contextRunner
+                .withBean(DataSource.class, GothDbAutoConfigurationTests::dataSource)
+                .run(context -> {
+                    GothDbUiController controller = context.getBean(GothDbUiController.class);
+
+                    assertThat(controller.redirectToTrailingSlash().getHeaders().getLocation())
+                            .hasPath("/gothdb/");
+                    assertThat(controller.index().getBody()).isNotNull();
+                    assertThat(controller.index().getBody().exists()).isTrue();
                 });
     }
 

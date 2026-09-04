@@ -20,6 +20,8 @@ public class GothDbProperties {
 
     private Rows rows = new Rows();
 
+    private Ui ui = new Ui();
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -50,6 +52,14 @@ public class GothDbProperties {
 
     public void setRows(Rows rows) {
         this.rows = rows;
+    }
+
+    public Ui getUi() {
+        return ui;
+    }
+
+    public void setUi(Ui ui) {
+        this.ui = ui;
     }
 
     public static class Schemas {
@@ -105,6 +115,19 @@ public class GothDbProperties {
 
         public void setQueryTimeout(Duration queryTimeout) {
             this.queryTimeout = queryTimeout;
+        }
+    }
+
+    public static class Ui {
+
+        private boolean enabled = true;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
         }
     }
 }

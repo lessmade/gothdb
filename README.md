@@ -21,13 +21,18 @@ Modern read-only database explorer for PostgreSQL and MySQL, shipped as a Spring
 
 ## Quick start (demo)
 
-Backend (H2 + sample schema, port 8080):
+Build and run the backend (H2 + sample schema, port 8080):
 
 ```bash
-mvn -f demo/pom.xml org.springframework.boot:spring-boot-maven-plugin:4.1.0:run
+mvn package
+java -jar demo/target/gothdb-demo-0.0.1-SNAPSHOT.jar
 ```
 
-UI (dev server on port 5173, proxies API calls to the backend):
+Open `http://localhost:8080/gothdb/`. The Maven build installs a project-local Node.js, runs `npm ci`,
+bundles the UI into the `gothdb-autoconfigure` JAR under `META-INF/gothdb`, and Spring MVC serves it
+from the configured `gothdb.path`.
+
+For frontend development, run the Vite dev server; it proxies API calls to the backend:
 
 ```bash
 cd ui
@@ -57,6 +62,8 @@ mvn verify -Ppostgresql-integration-tests
 gothdb:
   enabled: true   # default true, auto-disables without a servlet DataSource
   path: /gothdb    # base path for the API and UI
+  ui:
+    enabled: true  # set false to expose only the REST API
   schemas:
     include: []    # empty means all schemas
     exclude:       # PostgreSQL system schemas are excluded by default
@@ -77,4 +84,4 @@ gothdb:
 - `autoconfigure` — Spring Boot auto-configuration, REST controllers, error handling.
 - `spring-boot-starter` — the dependency consumers actually add to their project.
 - `demo` — runnable sample app (H2, seeded schema) used to develop and manually verify the above.
-- `ui` — the frontend (Vite + React), built separately, not yet wired into the Maven build.
+- `ui` — the Vite + React frontend, built by Maven and packaged into `gothdb-autoconfigure`.
