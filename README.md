@@ -37,6 +37,20 @@ npm run dev
 
 Open `http://localhost:5173`.
 
+## Tests
+
+Run the unit and auto-configuration tests without external services:
+
+```bash
+mvn test
+```
+
+Run the PostgreSQL integration tests with Docker!!!!:
+
+```bash
+mvn verify -Ppostgresql-integration-tests
+```
+
 ## Configuration
 
 ```yaml
