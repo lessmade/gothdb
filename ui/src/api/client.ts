@@ -10,7 +10,9 @@ import type {
   TableInfo,
 } from './types'
 
-const API_BASE = '/gothdb/api'
+const API_BASE = import.meta.env.DEV
+  ? '/gothdb/api'
+  : new URL('api', document.baseURI).pathname.replace(/\/$/, '')
 
 interface ApiErrorBody {
   status: number

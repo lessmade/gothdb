@@ -4,6 +4,8 @@ import javax.sql.DataSource;
 
 import io.github.lessmade.gothdb.autoconfigure.web.GothDbMetadataController;
 import io.github.lessmade.gothdb.autoconfigure.web.GothDbStatusController;
+import io.github.lessmade.gothdb.autoconfigure.ui.GothDbUiController;
+import io.github.lessmade.gothdb.autoconfigure.ui.GothDbUiWebConfiguration;
 import io.github.lessmade.gothdb.core.service.DatabaseMetadataService;
 import io.github.lessmade.gothdb.core.schema.PatternSchemaFilter;
 import io.github.lessmade.gothdb.core.schema.SchemaFilter;
@@ -79,5 +81,19 @@ public class GothDbAutoConfiguration {
     @ConditionalOnMissingBean
     GothDbExceptionHandler gothDbExceptionHandler() {
         return new GothDbExceptionHandler();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "gothdb.ui", name = "enabled", havingValue = "true", matchIfMissing = true)
+    GothDbUiController gothDbUiController(GothDbProperties properties) {
+        return new GothDbUiController(properties);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "gothdb.ui", name = "enabled", havingValue = "true", matchIfMissing = true)
+    GothDbUiWebConfiguration gothDbUiWebConfiguration(GothDbProperties properties) {
+        return new GothDbUiWebConfiguration(properties);
     }
 }

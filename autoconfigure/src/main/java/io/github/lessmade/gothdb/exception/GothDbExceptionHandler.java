@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import io.github.lessmade.gothdb.core.exception.DatabaseMetadataException;
 import io.github.lessmade.gothdb.core.exception.SchemaNotFoundException;
@@ -26,6 +27,11 @@ public class GothDbExceptionHandler {
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<GothDbError> onTypeMismatch(MethodArgumentTypeMismatchException exception) {
         return error(HttpStatus.BAD_REQUEST, "Invalid value for parameter '" + exception.getName() + "'");
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<GothDbError> onResourceNotFound(NoResourceFoundException exception) {
+        return error(HttpStatus.NOT_FOUND, "Resource not found");
     }
 
     @ExceptionHandler(DatabaseMetadataException.class)
