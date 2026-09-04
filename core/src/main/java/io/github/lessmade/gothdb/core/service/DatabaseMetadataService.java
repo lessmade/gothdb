@@ -28,6 +28,8 @@ import io.github.lessmade.gothdb.core.model.PrimaryKeyInfo;
 import io.github.lessmade.gothdb.core.model.RowPage;
 import io.github.lessmade.gothdb.core.model.SchemaInfo;
 import io.github.lessmade.gothdb.core.model.TableInfo;
+import io.github.lessmade.gothdb.core.value.DefaultJdbcValueConverter;
+import io.github.lessmade.gothdb.core.value.JdbcValueConverter;
 
 public final class DatabaseMetadataService {
 
@@ -36,14 +38,25 @@ public final class DatabaseMetadataService {
 
     private final DataSource dataSource;
     private final DatabaseDialect dialect;
+    private final JdbcValueConverter valueConverter;
 
     public DatabaseMetadataService(DataSource dataSource) {
-        this(dataSource, new LimitOffsetDialect());
+        this(dataSource, new LimitOffsetDialect(), new DefaultJdbcValueConverter());
     }
 
     public DatabaseMetadataService(DataSource dataSource, DatabaseDialect dialect) {
+        this(dataSource, dialect, new DefaultJdbcValueConverter());
+    }
+
+    public DatabaseMetadataService(DataSource dataSource, JdbcValueConverter valueConverter) {
+        this(dataSource, new LimitOffsetDialect(), valueConverter);
+    }
+
+    public DatabaseMetadataService(
+            DataSource dataSource, DatabaseDialect dialect, JdbcValueConverter valueConverter) {
         this.dataSource = dataSource;
         this.dialect = dialect;
+        this.valueConverter = valueConverter;
     }
 
     public DatabaseInfo getDatabaseInfo() {
@@ -299,7 +312,7 @@ public final class DatabaseMetadataService {
                 while (resultSet.next()) {
                     Map<String, Object> row = new LinkedHashMap<>();
                     for (int i = 1; i <= columnCount; i++) {
-                        row.put(columns.getColumnLabel(i), resultSet.getObject(i));
+                        row.put(columns.getColumnLabel(i), valueConverter.convert(resultSet.getObject(i)));
                     }
                     rows.add(row);
                 }

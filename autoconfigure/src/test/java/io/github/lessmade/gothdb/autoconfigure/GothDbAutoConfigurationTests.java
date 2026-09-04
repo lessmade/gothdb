@@ -12,6 +12,7 @@ import io.github.lessmade.gothdb.autoconfigure.web.GothDbMetadataController;
 import io.github.lessmade.gothdb.autoconfigure.web.GothDbStatus;
 import io.github.lessmade.gothdb.autoconfigure.web.GothDbStatusController;
 import io.github.lessmade.gothdb.core.service.DatabaseMetadataService;
+import io.github.lessmade.gothdb.core.value.JdbcValueConverter;
 import io.github.lessmade.gothdb.exception.GothDbExceptionHandler;
 
 import org.h2.jdbcx.JdbcDataSource;
@@ -50,6 +51,7 @@ class GothDbAutoConfigurationTests {
                     assertThat(context).hasSingleBean(GothDbStatusController.class);
                     assertThat(context).hasSingleBean(GothDbMetadataController.class);
                     assertThat(context).hasSingleBean(DatabaseMetadataService.class);
+                    assertThat(context).hasSingleBean(JdbcValueConverter.class);
                     assertThat(context).hasSingleBean(GothDbProperties.class);
                 });
     }
@@ -172,6 +174,13 @@ class GothDbAutoConfigurationTests {
                             .andExpect(jsonPath("$.page").value(0))
                             .andExpect(jsonPath("$.size").value(10));
 
+                    mockMvc.perform(get("/database/api/schemas/PUBLIC/tables/ROW_VALUE/rows"))
+                            .andExpect(status().isOk())
+                            .andExpect(jsonPath("$.rows[0].PAYLOAD.encoding").value("base64"))
+                            .andExpect(jsonPath("$.rows[0].PAYLOAD.data").value("AQID"))
+                            .andExpect(jsonPath("$.rows[0].PAYLOAD.truncated").value(false))
+                            .andExpect(jsonPath("$.rows[0].NOTES.data").value("hello"));
+
                     mockMvc.perform(get("/database/api/schemas/PUBLIC/tables/BOOK/rows")
                                     .param("size", "abc"))
                             .andExpect(status().isBadRequest())
@@ -186,6 +195,14 @@ class GothDbAutoConfigurationTests {
         try (Connection connection = dataSource.getConnection();
                 Statement statement = connection.createStatement()) {
             statement.execute("CREATE TABLE IF NOT EXISTS BOOK (ID BIGINT PRIMARY KEY, TITLE VARCHAR(100))");
+            statement.execute("""
+                    CREATE TABLE IF NOT EXISTS ROW_VALUE (
+                        ID BIGINT PRIMARY KEY,
+                        PAYLOAD VARBINARY,
+                        NOTES CLOB
+                    )
+                    """);
+            statement.execute("MERGE INTO ROW_VALUE KEY (ID) VALUES (1, X'010203', 'hello')");
         }
         catch (SQLException exception) {
             throw new IllegalStateException("Failed to prepare test database", exception);

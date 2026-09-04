@@ -5,6 +5,8 @@ import javax.sql.DataSource;
 import io.github.lessmade.gothdb.autoconfigure.web.GothDbMetadataController;
 import io.github.lessmade.gothdb.autoconfigure.web.GothDbStatusController;
 import io.github.lessmade.gothdb.core.service.DatabaseMetadataService;
+import io.github.lessmade.gothdb.core.value.DefaultJdbcValueConverter;
+import io.github.lessmade.gothdb.core.value.JdbcValueConverter;
 import io.github.lessmade.gothdb.exception.GothDbExceptionHandler;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -28,8 +30,15 @@ public class GothDbAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    DatabaseMetadataService gothDbDatabaseMetadataService(DataSource dataSource) {
-        return new DatabaseMetadataService(dataSource);
+    JdbcValueConverter gothDbJdbcValueConverter() {
+        return new DefaultJdbcValueConverter();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    DatabaseMetadataService gothDbDatabaseMetadataService(
+            DataSource dataSource, JdbcValueConverter valueConverter) {
+        return new DatabaseMetadataService(dataSource, valueConverter);
     }
 
     @Bean

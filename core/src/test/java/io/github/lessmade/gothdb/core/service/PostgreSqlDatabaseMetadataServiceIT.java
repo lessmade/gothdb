@@ -4,9 +4,13 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
+import java.time.temporal.TemporalAccessor;
+import java.util.List;
 
 import io.github.lessmade.gothdb.core.model.ColumnInfo;
 import io.github.lessmade.gothdb.core.model.RowPage;
+import io.github.lessmade.gothdb.core.value.BinaryValue;
+import io.github.lessmade.gothdb.core.value.UnsupportedJdbcValue;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.postgresql.ds.PGSimpleDataSource;
@@ -124,5 +128,24 @@ class PostgreSqlDatabaseMetadataServiceIT {
                 .containsExactly(
                         tuple(1, "A Wizard of Earthsea"),
                         tuple(2, "The Dispossessed"));
+    }
+
+    @Test
+    void convertsPostgreSqlValuesToTransportSafeValues() {
+        RowPage authors = metadataService.getRows("app", "author", 0, 10);
+        assertThat(authors.rows()).hasSize(1);
+
+        Object profile = authors.rows().get(0).get("profile");
+        assertThat(profile).isInstanceOf(UnsupportedJdbcValue.class);
+        UnsupportedJdbcValue unsupportedProfile = (UnsupportedJdbcValue) profile;
+        assertThat(unsupportedProfile.type()).isEqualTo("org.postgresql.util.PGobject");
+        assertThat(unsupportedProfile.value()).contains("\"active\"").contains("true");
+        assertThat(authors.rows().get(0).get("aliases")).isEqualTo(List.of("U. Le Guin"));
+        assertThat(authors.rows().get(0).get("created_at"))
+                .isInstanceOfAny(java.util.Date.class, TemporalAccessor.class);
+
+        RowPage books = metadataService.getRows("app", "book", 0, 1);
+        assertThat(books.rows().get(0).get("cover"))
+                .isEqualTo(new BinaryValue("base64", "AwQ=", false, 2));
     }
 }
