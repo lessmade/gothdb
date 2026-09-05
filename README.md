@@ -4,6 +4,16 @@ Modern read-only database explorer for PostgreSQL, shipped as a Spring Boot auto
 
 > **Early release — not production-ready.** PostgreSQL is the currently supported database. Expect breaking changes.
 
+## Preview
+
+Browse PostgreSQL table data with stable primary-key pagination:
+
+![GothDB PostgreSQL table data](docs/images/gothdb-data.jpg)
+
+Inspect columns, native types, nullability, primary keys, unique constraints, and foreign keys:
+
+![GothDB PostgreSQL table columns](docs/images/gothdb-columns.jpg)
+
 ## What works right now
 
 - Drop `gothdb-spring-boot-starter` into a Spring Boot app with a `DataSource` — it auto-configures itself, no manual wiring.
@@ -21,7 +31,19 @@ Modern read-only database explorer for PostgreSQL, shipped as a Spring Boot auto
 
 ## Quick start (PostgreSQL consumer app)
 
-Start PostgreSQL:
+Requirements:
+
+- Java 21+
+- Maven 3.9+
+- Docker
+
+Build the project:
+
+```bash
+mvn package
+```
+
+Start PostgreSQL on its standard port `5432`:
 
 ```bash
 docker run --name gothdb-postgres \
@@ -32,16 +54,100 @@ docker run --name gothdb-postgres \
   -d postgres:17.6-alpine
 ```
 
-Build and run the external-style consumer application:
+If host port `5432` is already in use, choose another one (for example `-p 5433:5432`) and use the
+same port in `DATABASE_URL`.
+
+Wait until PostgreSQL is ready:
 
 ```bash
-mvn package
+docker logs -f gothdb-postgres
+```
+
+Run the external-style consumer application against that container:
+
+```bash
+DATABASE_URL=jdbc:postgresql://localhost:5432/gothdb \
+DATABASE_USERNAME=gothdb \
+DATABASE_PASSWORD=gothdb \
 java -jar integration-tests/consumer-app/target/gothdb-consumer-app-0.0.1-SNAPSHOT.jar
 ```
 
-Open `http://localhost:8080/gothdb/`. The Maven build installs a project-local Node.js, runs `npm ci`,
-bundles the UI into the `gothdb-autoconfigure` JAR under `META-INF/gothdb`, and Spring MVC serves it
-from the configured `gothdb.path`.
+On the first run, Spring initializes the same sample catalog previously used by the demo: friends,
+products, orders, and order items. Open the UI at `http://localhost:8080/gothdb/`.
+
+The database remains initialized while the container exists. For subsequent application starts, skip
+the SQL initializer to avoid recreating the same tables:
+
+```bash
+DATABASE_URL=jdbc:postgresql://localhost:5432/gothdb \
+DATABASE_USERNAME=gothdb \
+DATABASE_PASSWORD=gothdb \
+java -jar integration-tests/consumer-app/target/gothdb-consumer-app-0.0.1-SNAPSHOT.jar \
+  --spring.sql.init.mode=never
+```
+
+To verify a custom GothDB path without editing `application.yml`:
+
+```bash
+DATABASE_URL=jdbc:postgresql://localhost:5432/gothdb \
+DATABASE_USERNAME=gothdb \
+DATABASE_PASSWORD=gothdb \
+java -jar integration-tests/consumer-app/target/gothdb-consumer-app-0.0.1-SNAPSHOT.jar \
+  --spring.sql.init.mode=never \
+  --gothdb.path=/ur-path
+```
+
+The UI and API then move together:
+
+- UI: `http://localhost:8080/ur-path/`
+- API status: `http://localhost:8080/ur-path/api/status`
+- the old `/gothdb/` path returns `404`
+
+Stop the container while keeping its database:
+
+```bash
+docker stop gothdb-postgres
+```
+
+Start it again later:
+
+```bash
+docker start gothdb-postgres
+```
+
+Or permanently remove the test container and its data:
+
+```bash
+docker rm -f gothdb-postgres
+```
+
+The Maven build installs a project-local Node.js, runs `npm ci`, bundles the UI into the
+`gothdb-autoconfigure` JAR under `META-INF/gothdb`, and serves it from `gothdb.path`. A separate Node.js
+process is not needed for normal use.
+
+## Using the starter
+
+Add the starter and PostgreSQL driver to a Spring Boot application that already configures a JDBC
+`DataSource`:
+
+```xml
+<dependency>
+    <groupId>io.github.lessmade</groupId>
+    <artifactId>gothdb-spring-boot-starter</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+</dependency>
+
+<dependency>
+    <groupId>org.postgresql</groupId>
+    <artifactId>postgresql</artifactId>
+    <scope>runtime</scope>
+</dependency>
+```
+
+No GothDB beans need to be declared manually. With a servlet application and a `DataSource`, the API
+and embedded UI are auto-configured.
+
+## Frontend development
 
 For frontend development, run the Vite dev server; it proxies API calls to the backend:
 
@@ -66,6 +172,10 @@ Run all PostgreSQL integration tests (Docker is required):
 ```bash
 mvn verify -Ppostgresql-integration-tests
 ```
+
+Testcontainers starts isolated PostgreSQL 17.6 containers on random ports, runs both the core metadata
+integration test and the consumer application end-to-end HTTP test, and removes the containers after
+the build. A manually started `gothdb-postgres` container is not required for this command.
 
 ## Configuration
 
