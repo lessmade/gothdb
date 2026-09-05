@@ -41,7 +41,7 @@
         <module>core</module>
         <module>autoconfigure</module>
         <module>spring-boot-starter</module>
-        <module>demo</module>
+        <module>integration-tests/consumer-app</module>
     </modules>
 
     <properties>

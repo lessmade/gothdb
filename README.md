@@ -1,8 +1,8 @@
 # gothdb
 
-Modern read-only database explorer for PostgreSQL and MySQL, shipped as a Spring Boot auto-configuration starter.
+Modern read-only database explorer for PostgreSQL, shipped as a Spring Boot auto-configuration starter.
 
-> **Early demo — not production-ready.** The API and UI you see here run against an in-memory H2 database with sample data (`demo` module). PostgreSQL/MySQL are the stated goal but not yet dialect-tested against real instances. Expect breaking changes.
+> **Early release — not production-ready.** PostgreSQL is the currently supported database. Expect breaking changes.
 
 ## What works right now
 
@@ -19,13 +19,24 @@ Modern read-only database explorer for PostgreSQL and MySQL, shipped as a Spring
 - Unified error handling (400 bad params, 404 unknown schema/table, generic 500 — no JDBC internals leaked).
 - A minimalist black-and-white UI (`ui/`): schemas → tables → columns/data, with connection status.
 
-## Quick start (demo)
+## Quick start (PostgreSQL consumer app)
 
-Build and run the backend (H2 + sample schema, port 8080):
+Start PostgreSQL:
+
+```bash
+docker run --name gothdb-postgres \
+  -e POSTGRES_DB=gothdb \
+  -e POSTGRES_USER=gothdb \
+  -e POSTGRES_PASSWORD=gothdb \
+  -p 5432:5432 \
+  -d postgres:17.6-alpine
+```
+
+Build and run the external-style consumer application:
 
 ```bash
 mvn package
-java -jar demo/target/gothdb-demo-0.0.1-SNAPSHOT.jar
+java -jar integration-tests/consumer-app/target/gothdb-consumer-app-0.0.1-SNAPSHOT.jar
 ```
 
 Open `http://localhost:8080/gothdb/`. The Maven build installs a project-local Node.js, runs `npm ci`,
@@ -50,7 +61,7 @@ Run the unit and auto-configuration tests without external services:
 mvn test
 ```
 
-Run the PostgreSQL integration tests with Docker!!!!:
+Run all PostgreSQL integration tests (Docker is required):
 
 ```bash
 mvn verify -Ppostgresql-integration-tests
@@ -83,5 +94,5 @@ gothdb:
 - `core` — framework-agnostic JDBC metadata reading, no Spring dependency.
 - `autoconfigure` — Spring Boot auto-configuration, REST controllers, error handling.
 - `spring-boot-starter` — the dependency consumers actually add to their project.
-- `demo` — runnable sample app (H2, seeded schema) used to develop and manually verify the above.
+- `integration-tests/consumer-app` — runnable PostgreSQL consumer and end-to-end Testcontainers test; it depends on GothDB through the starter.
 - `ui` — the Vite + React frontend, built by Maven and packaged into `gothdb-autoconfigure`.

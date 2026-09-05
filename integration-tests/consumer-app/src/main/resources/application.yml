@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: gothdb-consumer-app
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/gothdb}
+    username: ${DATABASE_USERNAME:gothdb}
+    password: ${DATABASE_PASSWORD:gothdb}
+  sql:
+    init:
+      mode: always
+
+gothdb:
+  enabled: true
+  path: /gothdb # you can change it to your custom path
+
+server:
+  port: ${SERVER_PORT:8080}

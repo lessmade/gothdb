@@ -1,12 +1,12 @@
-package io.github.lessmade.gothdb.demo;
+package io.github.lessmade.gothdb.consumer;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class GothDbDemoApplication {
+public class GothDbConsumerApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(GothDbDemoApplication.class, args);
+        SpringApplication.run(GothDbConsumerApplication.class, args);
     }
 }
