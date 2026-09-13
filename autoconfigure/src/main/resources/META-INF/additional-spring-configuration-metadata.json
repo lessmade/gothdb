@@ -1,0 +1,55 @@
+{
+  "properties": [
+    {
+      "name": "gothdb.security.mode",
+      "type": "io.github.lessmade.gothdb.autoconfigure.security.GothDbSecurityMode",
+      "description": "How access to the GothDB API and UI is authorized.",
+      "defaultValue": "auto"
+    },
+    {
+      "name": "gothdb.security.username",
+      "type": "java.lang.String",
+      "description": "User name accepted by HTTP Basic authentication. Used by the 'basic' mode only.",
+      "defaultValue": "gothdb"
+    },
+    {
+      "name": "gothdb.security.password",
+      "type": "java.lang.String",
+      "description": "Password accepted by HTTP Basic authentication. Used by the 'basic' mode only. When left empty a password is generated on every start and written to the log, which is meant for development only."
+    },
+    {
+      "name": "gothdb.security.realm",
+      "type": "java.lang.String",
+      "description": "Realm sent in the WWW-Authenticate challenge. Used by the 'basic' mode only.",
+      "defaultValue": "GothDB"
+    },
+    {
+      "name": "gothdb.security.roles",
+      "type": "java.util.List<java.lang.String>",
+      "description": "Roles allowed to reach GothDB. Used by the 'spring-security' mode only. An empty list accepts any authenticated user. Names without a ROLE_ prefix get one."
+    }
+  ],
+  "hints": [
+    {
+      "name": "gothdb.security.mode",
+      "values": [
+        {
+          "value": "auto",
+          "description": "Use 'spring-security' when Spring Security is on the classpath, otherwise 'basic'."
+        },
+        {
+          "value": "basic",
+          "description": "Require HTTP Basic credentials configured under gothdb.security, independently of Spring Security."
+        },
+        {
+          "value": "spring-security",
+          "description": "Require an authenticated user from the application's own Spring Security configuration, optionally holding one of gothdb.security.roles."
+        },
+        {
+          "value": "none",
+          "description": "Serve the API and UI without authentication. The full contents of the database become readable by anyone who can reach the path."
+        }
+      ]
+    }
+  ]
+}
