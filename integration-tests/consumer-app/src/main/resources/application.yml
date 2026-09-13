@@ -12,6 +12,10 @@ spring:
 gothdb:
   enabled: true
   path: /gothdb # you can change it to your custom path
+  security:
+    mode: basic # auto | basic | spring-security | none
+    username: ${GOTHDB_USERNAME:gothdb}
+    password: ${GOTHDB_PASSWORD:gothdb} # sample credentials, override them outside this demo
 
 server:
   port: ${SERVER_PORT:8080}

@@ -42,6 +42,8 @@ public final class DatabaseMetadataService {
             "TABLE", "BASE TABLE", "VIEW", "MATERIALIZED VIEW", "FOREIGN TABLE", "PARTITIONED TABLE"
     };
 
+    private static final System.Logger logger = System.getLogger(DatabaseMetadataService.class.getName());
+
     private final DataSource dataSource;
     private final DatabaseDialect dialect;
     private final JdbcValueConverter valueConverter;
@@ -95,7 +97,7 @@ public final class DatabaseMetadataService {
     }
 
     public DatabaseInfo getDatabaseInfo() {
-        try (Connection connection = dataSource.getConnection()) {
+        try (Connection connection = openReadOnlyConnection()) {
             DatabaseMetaData metadata = connection.getMetaData();
             return new DatabaseInfo(
                     metadata.getDatabaseProductName(),
@@ -108,7 +110,7 @@ public final class DatabaseMetadataService {
     }
 
     public List<SchemaInfo> getSchemas() {
-        try (Connection connection = dataSource.getConnection();
+        try (Connection connection = openReadOnlyConnection();
                 ResultSet resultSet = connection.getMetaData().getSchemas()) {
             List<SchemaInfo> schemas = new ArrayList<>();
             while (resultSet.next()) {
@@ -128,7 +130,7 @@ public final class DatabaseMetadataService {
         requireName(schema, "schema");
         requireSchemaVisible(schema);
 
-        try (Connection connection = dataSource.getConnection()) {
+        try (Connection connection = openReadOnlyConnection()) {
             DatabaseMetaData metadata = connection.getMetaData();
             String schemaPattern = escapePattern(metadata, schema);
             requireSchemaExists(metadata, schemaPattern, schema);
@@ -155,7 +157,7 @@ public final class DatabaseMetadataService {
         requireName(table, "table");
         requireSchemaVisible(schema);
 
-        try (Connection connection = dataSource.getConnection()) {
+        try (Connection connection = openReadOnlyConnection()) {
 
             DatabaseMetaData metadata = connection.getMetaData();
             String schemaPattern = escapePattern(metadata, schema);
@@ -195,7 +197,7 @@ public final class DatabaseMetadataService {
         requireName(table, "table");
         requireSchemaVisible(schema);
 
-        try (Connection connection = dataSource.getConnection()) {
+        try (Connection connection = openReadOnlyConnection()) {
 
             DatabaseMetaData metadata = connection.getMetaData();
             requireSchemaAndTableExist(metadata, schema, table);
@@ -227,7 +229,7 @@ public final class DatabaseMetadataService {
         requireName(table, "table");
         requireSchemaVisible(schema);
 
-        try (Connection connection = dataSource.getConnection()) {
+        try (Connection connection = openReadOnlyConnection()) {
 
             DatabaseMetaData metadata = connection.getMetaData();
             requireSchemaAndTableExist(metadata, schema, table);
@@ -266,7 +268,7 @@ public final class DatabaseMetadataService {
         requireName(table, "table");
         requireSchemaVisible(schema);
 
-        try (Connection connection = dataSource.getConnection()) {
+        try (Connection connection = openReadOnlyConnection()) {
 
             DatabaseMetaData metadata = connection.getMetaData();
             requireSchemaAndTableExist(metadata, schema, table);
@@ -305,7 +307,7 @@ public final class DatabaseMetadataService {
         requireSchemaVisible(schema);
         requirePagination(page, size, rowQueryOptions.maxPageSize());
 
-        try (Connection connection = dataSource.getConnection()) {
+        try (Connection connection = openReadOnlyConnection()) {
 
             DatabaseMetaData metadata = connection.getMetaData();
             requireSchemaAndTableExist(metadata, schema, table);
@@ -324,6 +326,17 @@ public final class DatabaseMetadataService {
         catch (SQLException exception) {
             throw metadataFailure(exception);
         }
+    }
+
+    private Connection openReadOnlyConnection() throws SQLException {
+        Connection connection = dataSource.getConnection();
+        try {
+            connection.setReadOnly(true);
+        }
+        catch (SQLException exception) {
+            logger.log(System.Logger.Level.DEBUG, "Driver rejected a read-only connection", exception);
+        }
+        return connection;
     }
 
     private long countRows(Connection connection, String qualifiedTable) throws SQLException {

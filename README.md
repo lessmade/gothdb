@@ -26,7 +26,10 @@ Inspect columns, native types, nullability, primary keys, unique constraints, an
   - `GET /gothdb/api/schemas/{schema}/tables/{table}/foreign-keys`
   - `GET /gothdb/api/schemas/{schema}/tables/{table}/indexes`
   - `GET /gothdb/api/schemas/{schema}/tables/{table}/rows?page=&size=`
-- Unified error handling (400 bad params, 404 unknown schema/table, generic 500 — no JDBC internals leaked).
+- Unified error handling (400 bad params, 404 unknown schema/table, generic 500 — no JDBC internals leaked), scoped to
+  the GothDB controllers so it never intercepts errors from the host application.
+- Authentication required by default — HTTP Basic on its own, or your existing Spring Security setup. See
+  [Security](#security).
 - A minimalist black-and-white UI (`ui/`): schemas → tables → columns/data, with connection status.
 
 ## Quick start (PostgreSQL consumer app)
@@ -73,7 +76,8 @@ java -jar integration-tests/consumer-app/target/gothdb-consumer-app-0.0.1-SNAPSH
 ```
 
 On the first run, Spring initializes the same sample catalog previously used by the demo: friends,
-products, orders, and order items. Open the UI at `http://localhost:8080/gothdb/`.
+products, orders, and order items. Open the UI at `http://localhost:8080/gothdb/` and sign in with the sample
+credentials `gothdb` / `gothdb` from `application.yml`; override them with `GOTHDB_USERNAME` and `GOTHDB_PASSWORD`.
 
 The database remains initialized while the container exists. For subsequent application starts, skip
 the SQL initializer to avoid recreating the same tables:
@@ -177,6 +181,50 @@ Testcontainers starts isolated PostgreSQL 17.6 containers on random ports, runs 
 integration test and the consumer application end-to-end HTTP test, and removes the containers after
 the build. A manually started `gothdb-postgres` container is not required for this command.
 
+## Security
+
+GothDB serves the full contents of every visible schema, so the API and UI require authentication out of the box.
+`gothdb.security.mode` decides how:
+
+| Mode | Behaviour |
+| --- | --- |
+| `auto` (default) | `spring-security` when Spring Security is on the classpath, otherwise `basic`. |
+| `basic` | HTTP Basic against `gothdb.security.username` / `gothdb.security.password`, with no dependency on Spring Security. |
+| `spring-security` | Requires a user authenticated by the application's own filter chain, optionally holding one of `gothdb.security.roles`. |
+| `none` | No authentication. Logs a warning at startup. |
+
+In `basic` mode without a configured password, one is generated on every start and written to the log:
+
+```
+Using generated GothDB password: 2f1c9a7e-...
+```
+
+That is a development convenience — set `gothdb.security.password` for anything else.
+
+GothDB never registers a `SecurityFilterChain` of its own. That matters: Spring Boot's default chain backs off as soon
+as any `SecurityFilterChain` bean exists, so a starter that contributed one would silently unprotect the rest of the
+host application. Authorization runs in a servlet filter scoped to `gothdb.path` instead, and your own chain keeps
+working untouched.
+
+To write your own rules against the GothDB path, inject the `GothDbRequestMatcher` bean:
+
+```java
+@Bean
+SecurityFilterChain securityFilterChain(HttpSecurity http, GothDbRequestMatcher gothDb) throws Exception {
+    return http
+            .authorizeHttpRequests(requests -> requests
+                    .requestMatchers(gothDb).hasRole("DBA")
+                    .anyRequest().authenticated())
+            .httpBasic(Customizer.withDefaults())
+            .build();
+}
+```
+
+Responses under `gothdb.path` also carry `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`,
+`X-Frame-Options: DENY`, `Referrer-Policy: no-referrer` and a `default-src 'self'` content security policy.
+
+Independently of the mode, every connection GothDB opens is marked read-only before use.
+
 ## Configuration
 
 ```yaml
@@ -197,6 +245,12 @@ gothdb:
     count-mode: exact # exact returns totals; none avoids COUNT(*)
     max-page-size: 200
     query-timeout: 5s
+  security:
+    mode: auto      # auto | basic | spring-security | none
+    username: gothdb # basic mode only
+    password:        # basic mode only, generated and logged when empty
+    realm: GothDB    # basic mode only
+    roles: []        # spring-security mode only, empty accepts any authenticated user
 ```
 
 ## Modules

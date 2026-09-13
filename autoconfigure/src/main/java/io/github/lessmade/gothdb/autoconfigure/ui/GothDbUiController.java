@@ -2,6 +2,7 @@ package io.github.lessmade.gothdb.autoconfigure.ui;
 
 import java.net.URI;
 
+import io.github.lessmade.gothdb.autoconfigure.config.GothDbPath;
 import io.github.lessmade.gothdb.autoconfigure.config.GothDbProperties;
 
 import org.springframework.core.io.ClassPathResource;
@@ -37,13 +38,6 @@ public class GothDbUiController {
     }
 
     static String normalizePath(String path) {
-        if (path == null || path.isBlank() || "/".equals(path)) {
-            throw new IllegalArgumentException("gothdb.path must be a non-root path");
-        }
-        String normalized = path.startsWith("/") ? path : "/" + path;
-        while (normalized.endsWith("/")) {
-            normalized = normalized.substring(0, normalized.length() - 1);
-        }
-        return normalized;
+        return GothDbPath.normalize(path);
     }
 }

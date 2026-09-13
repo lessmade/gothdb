@@ -1,1 +1,2 @@
 io.github.lessmade.gothdb.autoconfigure.config.GothDbAutoConfiguration
+io.github.lessmade.gothdb.autoconfigure.config.GothDbSecurityAutoConfiguration

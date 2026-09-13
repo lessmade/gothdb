@@ -5,6 +5,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -21,13 +23,12 @@ import org.springframework.test.context.DynamicPropertySource;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Testcontainers
-@SpringBootTest(
-        classes = GothDbConsumerApplication.class,
-        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(classes = GothDbConsumerApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class PostgreSqlConsumerApplicationIT {
 
-    private static final Pattern ASSET_PATH = Pattern.compile(
-            "(?:src|href)=\"\\./(assets/[^\"]+\\.(?:js|css))\"");
+    private static final Pattern ASSET_PATH = Pattern.compile("(?:src|href)=\"\\./(assets/[^\"]+\\.(?:js|css))\"");
+
+    private static final String CREDENTIALS = Base64.getEncoder().encodeToString("gothdb:gothdb".getBytes(StandardCharsets.UTF_8));
 
     @Container
     private static final PostgreSQLContainer POSTGRESQL = new PostgreSQLContainer("postgres:17.6-alpine")
@@ -89,8 +90,52 @@ class PostgreSqlConsumerApplicationIT {
                 "\"username\":\"emo\"");
     }
 
+    @Test
+    void rejectsAnonymousAccessToApiAndUi() throws Exception {
+        HttpResponse<String> api = getAnonymously("/gothdb/api/schemas");
+        assertThat(api.statusCode()).isEqualTo(401);
+        assertThat(api.headers().firstValue("www-authenticate").orElse("")).contains("Basic realm=\"GothDB\"");
+        assertThat(api.body()).doesNotContain("\"name\":\"public\"");
+
+        assertThat(getAnonymously("/gothdb/").statusCode()).isEqualTo(401);
+        assertThat(getAnonymously("/gothdb/api/status").statusCode()).isEqualTo(401);
+    }
+
+    @Test
+    void rejectsWrongCredentials() throws Exception {
+        String wrong = Base64.getEncoder().encodeToString("gothdb:nope".getBytes(StandardCharsets.UTF_8));
+        HttpRequest request = HttpRequest.newBuilder(uri("/gothdb/api/status"))
+                .header("Authorization", "Basic " + wrong)
+                .GET()
+                .build();
+
+        assertThat(httpClient.send(request, HttpResponse.BodyHandlers.ofString()).statusCode()).isEqualTo(401);
+    }
+
+    @Test
+    void addsSecurityHeadersToGothDbResponses() throws Exception {
+        HttpResponse<String> status = get("/gothdb/api/status");
+
+        assertThat(status.headers().firstValue("cache-control")).contains("no-store");
+        assertThat(status.headers().firstValue("x-content-type-options")).contains("nosniff");
+        assertThat(status.headers().firstValue("x-frame-options")).contains("DENY");
+        assertThat(status.headers().firstValue("content-security-policy").orElse("")).contains("default-src 'self'");
+    }
+
     private HttpResponse<String> get(String path) throws IOException, InterruptedException {
-        HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path)).GET().build();
+        HttpRequest request = HttpRequest.newBuilder(uri(path))
+                .header("Authorization", "Basic " + CREDENTIALS)
+                .GET()
+                .build();
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> getAnonymously(String path) throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder(uri(path)).GET().build();
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private URI uri(String path) {
+        return URI.create("http://localhost:" + port + path);
     }
 }

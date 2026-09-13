@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.time.Duration;
 
+import io.github.lessmade.gothdb.autoconfigure.security.GothDbSecurityMode;
 import io.github.lessmade.gothdb.core.row.CountMode;
 import io.github.lessmade.gothdb.core.schema.PatternSchemaFilter;
 
@@ -21,6 +22,8 @@ public class GothDbProperties {
     private Rows rows = new Rows();
 
     private Ui ui = new Ui();
+
+    private Security security = new Security();
 
     public boolean isEnabled() {
         return enabled;
@@ -60,6 +63,14 @@ public class GothDbProperties {
 
     public void setUi(Ui ui) {
         this.ui = ui;
+    }
+
+    public Security getSecurity() {
+        return security;
+    }
+
+    public void setSecurity(Security security) {
+        this.security = security;
     }
 
     public static class Schemas {
@@ -128,6 +139,59 @@ public class GothDbProperties {
 
         public void setEnabled(boolean enabled) {
             this.enabled = enabled;
+        }
+    }
+
+    public static class Security {
+
+        private GothDbSecurityMode mode = GothDbSecurityMode.AUTO;
+
+        private String username = "gothdb";
+
+        private String password;
+
+        private String realm = "GothDB";
+
+        private List<String> roles = new ArrayList<>();
+
+        public GothDbSecurityMode getMode() {
+            return mode;
+        }
+
+        public void setMode(GothDbSecurityMode mode) {
+            this.mode = mode;
+        }
+
+        public String getUsername() {
+            return username;
+        }
+
+        public void setUsername(String username) {
+            this.username = username;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+
+        public void setPassword(String password) {
+            this.password = password;
+        }
+
+        public String getRealm() {
+            return realm;
+        }
+
+        public void setRealm(String realm) {
+            this.realm = realm;
+        }
+
+        public List<String> getRoles() {
+            return roles;
+        }
+
+        public void setRoles(List<String> roles) {
+            this.roles = roles;
         }
     }
 }
